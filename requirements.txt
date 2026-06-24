@@ -20,7 +20,7 @@ lightgbm==4.5.0
 catboost==1.2.7
 torch==2.4.1
 tsfresh==0.20.2
-pandas-ta @ git+https://github.com/twopirllc/pandas-ta.git@0.3.14b
+https://www.pandas-ta.dev/assets/zip/pandas_ta-0.3.14b.tar.gz
 backtrader==1.9.78.123
 vectorbt==0.26.2
 transformers==4.44.2
