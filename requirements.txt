@@ -20,7 +20,7 @@ lightgbm==4.5.0
 catboost==1.2.7
 torch==2.4.1
 tsfresh==0.20.2
-pandas-ta
+pandas-ta==0.4.71b0
 backtrader==1.9.78.123
 vectorbt==0.26.2
 transformers==4.44.2
