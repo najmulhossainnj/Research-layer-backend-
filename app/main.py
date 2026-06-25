@@ -31,10 +31,18 @@ app = FastAPI(
     description="Standalone Research Layer service — Quant Research Platform.",
 )
 
+"""
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)"""
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,   # must be False when allow_origins=["*"]
     allow_methods=["*"],
     allow_headers=["*"],
 )
