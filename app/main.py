@@ -22,8 +22,8 @@ from app.api.strategies.promotion_router import router as promotion_router
 from app.api.tracking.router import router as tracking_router
 from app.api.validation.router import router as validation_router
 from app.core.config import get_settings
+from app.api.data.router import router as data_router
 
-settings = get_settings()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -81,6 +81,7 @@ app.include_router(tracking_router,            prefix=api_prefix)
 app.include_router(validation_router,          prefix=api_prefix)
 app.include_router(news_router,                prefix=api_prefix)
 app.include_router(agents_router,              prefix=api_prefix)
+app.include_router(data_router, prefix=api_prefix)
 
 
 @app.get("/api/v1/tasks/{task_id}", tags=["tasks"])
