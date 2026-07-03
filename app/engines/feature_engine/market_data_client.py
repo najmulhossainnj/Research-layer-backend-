@@ -33,19 +33,29 @@ logger = logging.getLogger(__name__)
 class MarketDataClient:
     def __init__(self, base_url: str | None = None, api_key: str | None = None):
         settings = get_settings()
-        self.base_url = (
-            base_url
-            or getattr(settings, "MARKET_DATA_URL", None)
-            or getattr(settings, "DATA_SERVICE_URL", "http://localhost:8001")
+        
+        # 1. Resolve base URL correctly
+        resolved_url = (
+            base_url 
+            or getattr(settings, "MARKET_DATA_URL", None) 
+            or getattr(settings, "DATA_SERVICE_URL", None)
         )
-        self.api_key = (
-            api_key
-            or getattr(settings, "DATA_SERVICE_API_KEY", "dev-api-key-change-in-production")
-        )
+        self.base_url = resolved_url if resolved_url else "http://localhost:8001"
+        
+        # 2. Resolve API Key correctly by ensuring empty/blank values are caught
+        resolved_key = api_key or getattr(settings, "DATA_SERVICE_API_KEY", None)
+        
+        if resolved_key and resolved_key.strip():
+            self.api_key = resolved_key.strip()
+        else:
+            self.api_key = "dev-api-key-change-in-production"
+            logger.warning("DATA_SERVICE_API_KEY not found or empty. Using development fallback key.")
+
         self._headers = {
             "X-API-Key": self.api_key,
             "Accept":    "application/json",
         }
+
 
     # ── OHLCV ─────────────────────────────────────────────────────────────
 
