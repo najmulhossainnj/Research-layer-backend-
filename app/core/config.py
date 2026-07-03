@@ -52,8 +52,7 @@ class Settings(BaseSettings):
         # --- External layer integrations ---
     MARKET_DATA_URL: str = "http://localhost:8001"
     
-    # Add this field so Pydantic maps     
-    DATA_SERVICE_API_KEY from your .env
+    # Add this field so Pydantic maps
     DATA_SERVICE_API_KEY: str = "dev-api-key-change-in-production"
 
 
