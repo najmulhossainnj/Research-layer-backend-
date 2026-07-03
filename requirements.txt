@@ -20,7 +20,7 @@ lightgbm==4.5.0
 catboost==1.2.7
 torch==2.4.1
 tsfresh==0.20.2
-https://www.pandas-ta.dev/assets/zip/pandas_ta-0.3.14b.tar.gz
+https://deleted-packages.pypimirror.stablebuild.com/pandas-ta/pandas_ta-0.3.14b.tar.gz?expires=1783118813585&signature=86875e526af150c1b02955fb310db13b33f171fef34a541fe40c045fa9273a38
 backtrader==1.9.78.123
 vectorbt==0.26.2
 transformers==4.44.2
