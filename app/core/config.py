@@ -38,8 +38,7 @@ class Settings(BaseSettings):
     MLFLOW_EXPERIMENT_NAME: str = "research-layer"
     MLFLOW_ARTIFACT_ROOT: str = "s3://research-artifacts/mlflow"
 
-    # --- External layer integrations ---
-    MARKET_DATA_URL: str = "http://localhost:8001"
+ 
 
     # --- Messaging ---
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
@@ -50,10 +49,11 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
         # --- External layer integrations ---
-    MARKET_DATA_URL: str = "http://localhost:8001"
+    MARKET_DATA_URL: str
     
     # Add this field so Pydantic maps
-    DATA_SERVICE_API_KEY: str = "dev-api-key-change-in-production"
+    DATA_SERVICE_API_KEY: str
+    DATA_SERVICE_URL: str
 
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
