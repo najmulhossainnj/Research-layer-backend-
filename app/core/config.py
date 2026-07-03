@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "change-me-in-production"
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
+        # --- External layer integrations ---
+    MARKET_DATA_URL: str = "http://localhost:8001"
+    
+    # Add this field so Pydantic maps     
+    DATA_SERVICE_API_KEY from your .env
+    DATA_SERVICE_API_KEY: str = "dev-api-key-change-in-production"
+
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 
