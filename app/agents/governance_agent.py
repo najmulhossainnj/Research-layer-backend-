@@ -10,6 +10,7 @@ Responsibilities (from the spec):
 from __future__ import annotations
 
 import numpy as np
+from datetime import datetime
 
 from app.agents.base import AgentContext, AgentResult, AgentRole, BaseAgent
 
@@ -202,7 +203,9 @@ class GovernanceAgent(BaseAgent):
         details: dict = {}
 
         if ctx.start_date and ctx.end_date:
-            days = (ctx.end_date - ctx.start_date).days
+            start_dt = datetime.fromisoformat(str(ctx.start_date))
+            end_dt = datetime.fromisoformat(str(ctx.end_date))
+            days = (end_dt - start_dt).days
             details["dataset_days"] = days
             if days < 252:
                 flags.append(
