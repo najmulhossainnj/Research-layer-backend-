@@ -120,11 +120,19 @@ async def execute_backtest(
     if bt.status == BacktestStatus.RUNNING:
         raise HTTPException(status_code=409, detail="Backtest is already running")
 
+    # Try async mode with Celery, fall back to sync if not available
     if payload.async_mode:
-        from app.workers.backtest_tasks import execute_backtest_task
-        task = execute_backtest_task.delay(str(backtest_id))
-        return {"task_id": task.id, "status": "PENDING"}
+        try:
+            from app.workers.backtest_tasks import execute_backtest_task
+            task = execute_backtest_task.delay(str(backtest_id))
+            return {"task_id": task.id, "status": "PENDING"}
+        except Exception as e:
+            # Celery not configured - fall back to sync execution
+            # Log warning but don't fail the request
+            import logging
+            logging.warning(f"Celery not available ({e}), falling back to sync execution")
 
+    # Sync execution (default or fallback)
     pipeline = BacktestPipeline()
     updated_bt, _ = await pipeline.execute(db, bt)
     return _enrich_response(updated_bt)
@@ -140,9 +148,17 @@ async def execute_backtest_async(
     if bt.status == BacktestStatus.RUNNING:
         raise HTTPException(status_code=409, detail="Backtest already running")
 
-    from app.workers.backtest_tasks import execute_backtest_task
-    task = execute_backtest_task.delay(str(backtest_id))
-    return {"task_id": task.id, "status": "PENDING"}
+    try:
+        from app.workers.backtest_tasks import execute_backtest_task
+        task = execute_backtest_task.delay(str(backtest_id))
+        return {"task_id": task.id, "status": "PENDING"}
+    except Exception as e:
+        # Fall back to sync execution
+        import logging
+        logging.warning(f"Celery not available ({e}), executing synchronously")
+        pipeline = BacktestPipeline()
+        updated_bt, _ = await pipeline.execute(db, bt)
+        return _enrich_response(updated_bt)
 
 
 # ── Result downloads ──────────────────────────────────────────────────────
