@@ -1,9 +1,123 @@
-# Research Layer — Phase 1
+# Unified Quant Research Platform
 
-Standalone backend scaffold for the Quant Research Platform: Strategy,
-Feature, Model, and Backtest CRUD, plus the plugin architecture that later
-phases (Feature Engine, Model Training, Signal Engine, Backtest Engine,
-Validation, MLflow, AI Agents) build on top of.
+A production-grade backend for quantitative research combining the **Research Layer** and **Data Layer** into a single, unified service.
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Unified Quant Research Platform                   │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                    Research Layer                          │   │
+│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │   │
+│   │  │Strategy  │ │Feature   │ │Model     │ │Signal    │      │   │
+│   │  │Builder   │ │Engine    │ │Training  │ │Generator │      │   │
+│   │  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │   │
+│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │   │
+│   │  │Backtest  │ │Validation│ │MLflow    │ │AI Agents │      │   │
+│   │  │Engine    │ │Center    │ │Tracking  │ │          │      │   │
+│   │  └──────────┘ └──────────┘ └──────────┘ └──────────┘      │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                              │                                      │
+│                              ▼                                      │
+│   ┌─────────────────────────────────────────────────────────────┐   │
+│   │                      Data Layer                              │   │
+│   │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │   │
+│   │  │Yahoo     │ │News      │ │FRED      │ │Internal  │       │   │
+│   │  │Finance   │ │API       │ │Macro     │ │Cache     │       │   │
+│   │  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │   │
+│   └─────────────────────────────────────────────────────────────┘   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+   ┌──────────┐         ┌──────────┐         ┌──────────┐
+   │PostgreSQL│         │  Redis   │         │  MinIO   │
+   │ (Meta)   │         │ (Cache)  │         │ (S3)     │
+   └──────────┘         └──────────┘         └──────────┘
+```
+
+## 🚀 Quick Start
+
+### Docker (Recommended)
+
+```bash
+# Clone and start
+git clone https://github.com/najmulhossainnj/Hedge-fund-backend.git
+cd Hedge-fund-backend
+
+# Start all services
+docker-compose up -d
+
+# Check health
+curl http://localhost:8000/health
+
+# View API docs
+open http://localhost:8000/docs
+```
+
+### Local Development
+
+```bash
+# Clone
+git clone https://github.com/najmulhossainnj/Hedge-fund-backend.git
+cd Hedge-fund-backend
+
+# Create virtual environment
+python -m venv .venv && source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and edit environment
+cp .env.example .env
+# Edit .env with your settings
+
+# Run migrations
+alembic revision --autogenerate -m "init"
+alembic upgrade head
+
+# Start the server
+uvicorn app.main:app --reload
+```
+
+## 📁 Project Structure
+
+```
+Hedge-fund-backend/
+├── app/
+│   ├── api/                    # REST API routers
+│   │   ├── strategies/         # Strategy CRUD + promotion
+│   │   ├── features/          # Feature CRUD + generation
+│   │   ├── models/            # Model CRUD + training
+│   │   ├── signals/           # Signal rule tree
+│   │   ├── backtests/         # Backtest execution + sweep
+│   │   ├── experiments/       # Experiment tracking
+│   │   ├── validation/        # Walk-forward + CPCV
+│   │   ├── tracking/          # MLflow integration
+│   │   ├── news/              # News sentiment
+│   │   ├── agents/            # AI research agents
+│   │   └── data/              # Data inspection proxy
+│   │
+│   ├── core/                  # Configuration + utilities
+│   ├── db/                    # SQLAlchemy setup + CRUD base
+│   ├── domain/                # ORM models + Pydantic schemas
+│   ├── engines/               # Feature/Signal/Backtest engines
+│   ├── plugins/               # Plugin system (Base classes + examples)
+│   ├── workers/               # Celery task definitions
+│   └── data/                  # Merged Data Layer
+│       ├── delivery/          # FastAPI endpoints
+│       ├── ingestion/         # Provider implementations
+│       └── shared/            # Shared utilities
+│
+├── docker-compose.yml          # Full stack deployment
+├── Dockerfile.unified         # Unified container
+├── requirements.txt          # All dependencies (merged)
+└── alembic/                  # Database migrations
+```
 
 ## What's implemented
 
