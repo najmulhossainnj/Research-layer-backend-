@@ -72,6 +72,8 @@ class SignalLogicRead(BaseModel):
 
 class SignalGenerateRequest(BaseModel):
     """Generate signals for a symbol/range using a trained model + rule tree."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     model_id: uuid.UUID
     feature_ids: list[uuid.UUID]
     signal_logic_id: Optional[uuid.UUID] = Field(
@@ -99,6 +101,8 @@ class SignalSummary(BaseModel):
 
 
 class SignalGenerateResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     signal_logic_id: Optional[uuid.UUID]
     plugin_key: Optional[str]
     model_id: uuid.UUID

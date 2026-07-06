@@ -12,6 +12,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class BacktestRunConfig(BaseModel):
     """Full execution config embedded in Backtest.config JSONB."""
+    model_config = ConfigDict(protected_namespaces=())
+    
     symbol: str
     timeframe: str = "1d"
     start_date: datetime
