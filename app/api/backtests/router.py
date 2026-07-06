@@ -114,6 +114,9 @@ async def execute_backtest(
     payload: BacktestExecuteRequest,
     db: AsyncSession = Depends(get_db),
 ):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     bt = await _repo.get(db, backtest_id)
     if not bt:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -124,17 +127,23 @@ async def execute_backtest(
     if payload.async_mode:
         try:
             from app.workers.backtest_tasks import execute_backtest_task
+            from app.core.config import get_settings
+            settings = get_settings()
+            
+            logger.info(f"Dispatching backtest {backtest_id} to Celery. Broker: {settings.CELERY_BROKER_URL}")
             task = execute_backtest_task.delay(str(backtest_id))
+            logger.info(f"Task dispatched successfully. Task ID: {task.id}")
             return {"task_id": task.id, "status": "PENDING"}
         except Exception as e:
-            # Celery not configured - fall back to sync execution
-            # Log warning but don't fail the request
-            import logging
-            logging.warning(f"Celery not available ({e}), falling back to sync execution")
+            logger.error(f"Celery dispatch failed: {type(e).__name__}: {e}")
+            # Fall back to sync execution
+            logger.info("Falling back to synchronous execution")
 
     # Sync execution (default or fallback)
+    logger.info(f"Starting synchronous backtest execution for {backtest_id}")
     pipeline = BacktestPipeline()
     updated_bt, _ = await pipeline.execute(db, bt)
+    logger.info(f"Synchronous backtest completed. Status: {updated_bt.status}")
     return _enrich_response(updated_bt)
 
 
@@ -142,6 +151,9 @@ async def execute_backtest(
 async def execute_backtest_async(
     backtest_id: uuid.UUID, db: AsyncSession = Depends(get_db)
 ):
+    import logging
+    logger = logging.getLogger(__name__)
+    
     bt = await _repo.get(db, backtest_id)
     if not bt:
         raise HTTPException(status_code=404, detail="Backtest not found")
@@ -150,12 +162,17 @@ async def execute_backtest_async(
 
     try:
         from app.workers.backtest_tasks import execute_backtest_task
+        from app.core.config import get_settings
+        settings = get_settings()
+        
+        logger.info(f"Async dispatching backtest {backtest_id} to Celery. Broker: {settings.CELERY_BROKER_URL}")
         task = execute_backtest_task.delay(str(backtest_id))
+        logger.info(f"Async task dispatched. Task ID: {task.id}")
         return {"task_id": task.id, "status": "PENDING"}
     except Exception as e:
+        logger.error(f"Celery async dispatch failed: {type(e).__name__}: {e}")
         # Fall back to sync execution
-        import logging
-        logging.warning(f"Celery not available ({e}), executing synchronously")
+        logger.info(f"Async fallback: executing synchronously for {backtest_id}")
         pipeline = BacktestPipeline()
         updated_bt, _ = await pipeline.execute(db, bt)
         return _enrich_response(updated_bt)
@@ -259,6 +276,68 @@ async def compare_backtests(
 @router.get("/engines/available")
 async def list_available_engines():
     return {"engines": list_engines()}
+
+
+# ── Debug / Health ──────────────────────────────────────────────────────────
+
+@router.get("/debug/celery-status")
+async def celery_status():
+    """Check Celery/Redis connectivity for debugging async execution."""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    result = {
+        "celery_configured": False,
+        "redis_reachable": False,
+        "broker_url": None,
+        "workers_available": [],
+        "error": None,
+    }
+    
+    try:
+        from app.core.config import get_settings
+        settings = get_settings()
+        result["broker_url"] = settings.CELERY_BROKER_URL
+        result["celery_configured"] = bool(settings.CELERY_BROKER_URL)
+    except Exception as e:
+        result["error"] = f"Config error: {e}"
+        return result
+    
+    try:
+        import redis
+        redis_url = settings.CELERY_BROKER_URL.replace("redis://", "")
+        if "/" in redis_url:
+            host_port = redis_url.split("/")[0]
+        else:
+            host_port = redis_url
+        
+        if ":" in host_port:
+            host, port = host_port.split(":")
+        else:
+            host, port = host_port, 6379
+        
+        r = redis.Redis(host=host, port=int(port), socket_connect_timeout=5)
+        r.ping()
+        result["redis_reachable"] = True
+        logger.info("Redis ping successful")
+    except Exception as e:
+        result["error"] = f"Redis error: {e}"
+        logger.error(f"Redis connectivity check failed: {e}")
+    
+    try:
+        from app.workers.celery_app import celery_app
+        inspect = celery_app.control.inspect()
+        stats = inspect.stats()
+        if stats:
+            result["workers_available"] = list(stats.keys())
+        else:
+            result["workers_available"] = []
+            result["error"] = (result.get("error") or "") + " | No workers available"
+    except Exception as e:
+        result["error"] = (result.get("error") or "") + f" | Celery inspect error: {e}"
+        logger.error(f"Celery inspect failed: {e}")
+    
+    return result
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
