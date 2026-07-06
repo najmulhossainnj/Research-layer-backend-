@@ -42,21 +42,39 @@ A production-grade backend for quantitative research combining the **Research La
 
 ## 🚀 Quick Start
 
-### Docker (Recommended)
+### Docker Compose (Recommended)
 
 ```bash
-# Clone and start
+# Clone and start all services
 git clone https://github.com/najmulhossainnj/Hedge-fund-backend.git
 cd Hedge-fund-backend
 
-# Start all services
+# Start all services (API + Celery worker + PostgreSQL + Redis + MinIO + MLflow)
 docker-compose up -d
 
-# Check health
+# Check API health
 curl http://localhost:8000/health
 
 # View API docs
 open http://localhost:8000/docs
+
+# Run database migrations
+docker-compose exec api alembic upgrade head
+
+# Create S3 buckets
+docker-compose exec api python -c "
+from app.core.storage import get_storage_client
+s = get_storage_client()
+s.ensure_bucket('research-artifacts')
+s.ensure_bucket('feature-store')
+print('Buckets ready')
+"
+
+# Watch API logs
+docker-compose logs -f api
+
+# Watch Celery worker logs
+docker-compose logs -f celery_worker
 ```
 
 ### Local Development
@@ -82,6 +100,9 @@ alembic upgrade head
 
 # Start the server
 uvicorn app.main:app --reload
+
+# In a separate terminal, start Celery worker
+celery -A app.workers.celery_app worker --loglevel=info
 ```
 
 ## 📁 Project Structure
@@ -264,22 +285,60 @@ validation (Phase 7/8), News Sentiment/FinBERT pipeline (Phase 9),
 AI Research Agents (Phase 10), Portfolio Layer promotion (Phase 11),
 auth middleware.
 
-## Running locally
+## Deployment
 
-```bash
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+### Railway Deployment (Recommended for Cloud)
 
-# Start Postgres/Redis/MinIO/MLflow via your own docker-compose (not included yet)
+On Railway, deploy **two separate services** that share environment variables:
 
-# Run migrations
-alembic revision --autogenerate -m "init schema"
-alembic upgrade head
+#### Service 1: API (using Dockerfile.unified)
+1. Create new Railway project
+2. Add a **Nix** service pointing to your GitHub repo
+3. Use the `Dockerfile.unified`
+4. Set environment variables:
+   ```
+   DATABASE_URL=<Railway PostgreSQL connection string>
+   REDIS_URL=<Upstash Redis URL>
+   CELERY_BROKER_URL=<Upstash Redis URL>
+   CELERY_RESULT_BACKEND=<Upstash Redis URL>
+   S3_ENDPOINT_URL=<Cloudflare R2 endpoint>
+   S3_ACCESS_KEY=<R2 access key>
+   S3_SECRET_KEY=<R2 secret key>
+   S3_BUCKET_ARTIFACTS=research-artifacts
+   S3_BUCKET_FEATURES=feature-store
+   DATA_SERVICE_URL=<your-data-layer.railway.app>
+   DATA_SERVICE_API_KEY=<your-api-key>
+   APP_ENV=production
+   SECRET_KEY=<generate-secure-key>
+   ```
+5. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-# Start the API
-uvicorn app.main:app --reload
-```
+#### Service 2: Celery Worker (using Dockerfile.worker)
+1. Add another **Nix** service to the same Railway project
+2. Use the `Dockerfile.worker`
+3. **Same environment variables** as API (Railway auto-shares them)
+4. Set start command: `celery -A app.workers.celery_app worker --loglevel=info --concurrency=2`
+
+#### Key: How services communicate
+| Service | Reaches |
+|---------|---------|
+| API | PostgreSQL, Redis via Railway private networking |
+| Celery Worker | Same PostgreSQL, Redis via Railway private networking |
+| API → Data Layer | `DATA_SERVICE_URL` external URL |
+
+### Docker Compose (Local Development)
+
+See Docker Compose section above for full local stack.
+
+### Environment Variables
+
+See `.env.example` for all configurable options.
+
+**Required for async backtest execution:**
+- `CELERY_BROKER_URL` - Redis URL (broker)
+- `CELERY_RESULT_BACKEND` - Redis URL (results)
+
+When these are configured, async execution works automatically. The backend gracefully falls back to sync execution if Redis is unavailable.
 
 Visit `http://localhost:8000/docs` for interactive API docs.
 
