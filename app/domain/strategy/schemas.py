@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrategyBase(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     name: str = Field(..., max_length=255)
     description: Optional[str] = None
     universe: list[str] = Field(default_factory=list)
@@ -24,6 +26,8 @@ class StrategyCreate(StrategyBase):
 
 
 class StrategyUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     name: Optional[str] = None
     description: Optional[str] = None
     universe: Optional[list[str]] = None
@@ -36,7 +40,7 @@ class StrategyUpdate(BaseModel):
 
 
 class StrategyRead(StrategyBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     id: uuid.UUID
     status: str

@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExperimentCreate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     strategy_id: uuid.UUID
     dataset_version: Optional[str] = None
     feature_version: Optional[str] = None
@@ -21,6 +23,8 @@ class ExperimentCreate(BaseModel):
 
 
 class ExperimentUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     mlflow_run_id: Optional[str] = None
     parameters: Optional[dict] = None
     metrics: Optional[dict] = None
@@ -28,7 +32,7 @@ class ExperimentUpdate(BaseModel):
 
 
 class ExperimentRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     id: uuid.UUID
     strategy_id: uuid.UUID

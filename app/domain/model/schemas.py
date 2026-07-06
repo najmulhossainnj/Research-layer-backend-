@@ -9,6 +9,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ModelBase(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     name: str = Field(..., max_length=255)
     model_type: str  # e.g. "xgboost", "lstm", "arima"
     family: str  # statistical | machine_learning | deep_learning | ensemble
@@ -20,6 +22,8 @@ class ModelCreate(ModelBase):
 
 
 class ModelUpdate(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+    
     name: Optional[str] = None
     model_type: Optional[str] = None
     family: Optional[str] = None
@@ -30,7 +34,7 @@ class ModelUpdate(BaseModel):
 
 
 class ModelRead(ModelBase):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
     id: uuid.UUID
     version: int

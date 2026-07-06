@@ -303,27 +303,56 @@ async def celery_status():
         result["error"] = f"Config error: {e}"
         return result
     
+    # Test Redis connectivity (supports both redis:// and rediss:// for Upstash TLS)
     try:
         import redis
-        redis_url = settings.CELERY_BROKER_URL.replace("redis://", "")
-        if "/" in redis_url:
-            host_port = redis_url.split("/")[0]
-        else:
-            host_port = redis_url
+        from urllib.parse import urlparse
         
-        if ":" in host_port:
-            host, port = host_port.split(":")
-        else:
-            host, port = host_port, 6379
+        redis_url = settings.CELERY_BROKER_URL
+        parsed = urlparse(redis_url)
         
-        r = redis.Redis(host=host, port=int(port), socket_connect_timeout=5)
+        # Determine if TLS is required (rediss://)
+        use_tls = redis_url.startswith("rediss://")
+        
+        # Extract connection parameters
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 6379
+        username = parsed.username or None
+        password = parsed.password or None
+        db = parsed.path.lstrip("/") if parsed.path else "0"
+        
+        # Create Redis client with appropriate parameters
+        if use_tls:
+            r = redis.Redis(
+                host=host,
+                port=port,
+                username=username,
+                password=password,
+                db=int(db) if db.isdigit() else 0,
+                ssl=True,
+                ssl_cert_reqs="none",  # For Upstash compatibility
+                socket_connect_timeout=5,
+                socket_timeout=5,
+            )
+        else:
+            r = redis.Redis(
+                host=host,
+                port=port,
+                username=username if username else None,
+                password=password,
+                db=int(db) if db.isdigit() else 0,
+                socket_connect_timeout=5,
+                socket_timeout=5,
+            )
+        
         r.ping()
         result["redis_reachable"] = True
-        logger.info("Redis ping successful")
+        logger.info(f"Redis ping successful ({host}:{port})")
     except Exception as e:
         result["error"] = f"Redis error: {e}"
         logger.error(f"Redis connectivity check failed: {e}")
     
+    # Check Celery worker status
     try:
         from app.workers.celery_app import celery_app
         inspect = celery_app.control.inspect()
@@ -332,9 +361,11 @@ async def celery_status():
             result["workers_available"] = list(stats.keys())
         else:
             result["workers_available"] = []
-            result["error"] = (result.get("error") or "") + " | No workers available"
+            if not result.get("error"):
+                result["error"] = "No workers available"
     except Exception as e:
-        result["error"] = (result.get("error") or "") + f" | Celery inspect error: {e}"
+        err_msg = f"Celine inspect error: {e}"
+        result["error"] = (result.get("error") + " | " + err_msg) if result.get("error") else err_msg
         logger.error(f"Celery inspect failed: {e}")
     
     return result
