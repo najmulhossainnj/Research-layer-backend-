@@ -61,7 +61,7 @@ services:
     container_name: quant_api
     environment:
       # Database (SQLite - local file)
-      DATABASE_URL: sqlite+aiosqlite:///app_data/research_layer.db
+      SQLITE_PATH: /app_data/research_layer.db
       # Cache (DiskCache - local directory)
       CACHE_DIR: /app_cache
       # S3/MinIO

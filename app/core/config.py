@@ -41,8 +41,13 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api/v1"
 
     # ── Database (SQLite) ────────────────────────────────────────────
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{_get_default_db_path()}"
+    SQLITE_PATH: str = _get_default_db_path()
     TIMESCALE_URL: Optional[str] = None
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Construct SQLite URL from path (for backward compatibility)."""
+        return f"sqlite+aiosqlite:///{self.SQLITE_PATH}"
 
     # ── Cache (DiskCache) ───────────────────────────────────────────
     CACHE_DIR: str = _get_default_cache_dir()

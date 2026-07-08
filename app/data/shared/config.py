@@ -32,7 +32,12 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
 
     # ── Database (SQLite) ────────────────────────────────────────────────────────
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{_get_default_db_path()}"
+    SQLITE_PATH: str = _get_default_db_path()
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Construct SQLite URL from path."""
+        return f"sqlite+aiosqlite:///{self.SQLITE_PATH}"
 
     # ── Cache (DiskCache) ──────────────────────────────────────────────
     CACHE_DIR: str = _get_default_cache_dir()

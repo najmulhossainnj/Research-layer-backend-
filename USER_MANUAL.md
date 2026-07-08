@@ -302,7 +302,7 @@ docker-compose exec app alembic upgrade head
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | sqlite+aiosqlite://user:pass@localhost/db | LOCAL (SQLite + DiskCache + APScheduler) connection |
+| `SQLITE_PATH` | sqlite+aiosqlite://user:pass@localhost/db | LOCAL (SQLite + DiskCache + APScheduler) connection |
 | `REDIS_URL` | NOT NEEDED (SQLite + DiskCache + APScheduler) connection |
 | `MINIO_ENDPOINT` | localhost:9000 | MinIO/S3 endpoint |
 | `MINIO_ACCESS_KEY` | minioadmin | MinIO access key |
@@ -435,7 +435,7 @@ pytest -m integration -v
 
 ```bash
 # Test database connection
-psql $DATABASE_URL -c "SELECT 1"
+psql $SQLITE_PATH -c "SELECT 1"
 
 # Check migrations status
 alembic current

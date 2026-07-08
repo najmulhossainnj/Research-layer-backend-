@@ -18,7 +18,7 @@ COPY . .
 EXPOSE 8000
 
 # Run with local backend (SQLite + DiskCache)
-ENV DATABASE_URL=sqlite+aiosqlite:///data/research_layer.db
+ENV SQLITE_PATH=/data/research_layer.db
 ENV CACHE_DIR=/data/cache
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

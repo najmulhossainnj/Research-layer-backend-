@@ -297,7 +297,7 @@ On Railway, deploy **two separate services** that share environment variables:
 3. Use the `Dockerfile.unified`
 4. Set environment variables:
    ```
-   DATABASE_URL=<Railway LOCAL (SQLite + DiskCache + APScheduler) connection string>
+   SQLITE_PATH=<Railway LOCAL (SQLite + DiskCache + APScheduler) connection string>
    REDIS_URL=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
    CELERY_BROKER_URL=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
    CELERY_RESULT_BACKEND=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
