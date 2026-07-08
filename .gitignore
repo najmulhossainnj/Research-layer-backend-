@@ -31,3 +31,4 @@ cache/
 # OS
 .DS_Store
 Thumbs.db
+app.txt
