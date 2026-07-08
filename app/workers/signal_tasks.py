@@ -45,7 +45,7 @@ def generate_signals_task(
         from app.engines.signal_engine.pipeline import SignalPipeline
 
         settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         Session = async_sessionmaker(engine, expire_on_commit=False)
 
         async with Session() as db:

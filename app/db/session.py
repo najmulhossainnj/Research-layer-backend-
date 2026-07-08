@@ -13,22 +13,16 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-# Parse the SQLite URL and ensure proper format
-db_url = settings.DATABASE_URL
+# Build SQLite URL from path directly
+db_url = f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"
 
-# For SQLite, we use NullPool to avoid threading issues with aiosqlite
-# and set check_same_thread=False for async compatibility
-connect_args = {}
-if db_url.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
-
-# Create engine with SQLite-compatible settings
+# SQLite: NullPool for async compatibility, disable thread checking
 engine = create_async_engine(
     db_url,
     echo=False,
     future=True,
-    poolclass=NullPool,  # SQLite works better with NullPool in async context
-    connect_args=connect_args,
+    poolclass=NullPool,
+    connect_args={"check_same_thread": False},
 )
 
 AsyncSessionLocal = async_sessionmaker(

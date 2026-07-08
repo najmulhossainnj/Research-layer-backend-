@@ -29,7 +29,7 @@ def walk_forward_task(payload: dict):
         from app.engines.validation_engine.walk_forward import WalkForwardConfig
 
         settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         Session = async_sessionmaker(engine, expire_on_commit=False)
 
         wf_cfg_data = payload.get("config", {}).get("wf", {})
@@ -90,7 +90,7 @@ def cpcv_task(payload: dict):
         from app.engines.validation_engine.engine import CPCVValidationEngine
 
         settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         Session = async_sessionmaker(engine, expire_on_commit=False)
 
         cpcv_data = payload.get("cpcv", {})

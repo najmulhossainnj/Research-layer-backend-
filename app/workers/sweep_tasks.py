@@ -44,7 +44,7 @@ def parameter_sweep_task(
         from app.engines.backtest_engine.pipeline import BacktestPipeline
 
         settings = get_settings()
-        engine_inst = create_async_engine(settings.DATABASE_URL)
+        engine_inst = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         Session = async_sessionmaker(engine_inst, expire_on_commit=False)
         repo = CRUDRepository[Backtest, BacktestCreate, BacktestUpdate](Backtest)
         pipeline = BacktestPipeline()

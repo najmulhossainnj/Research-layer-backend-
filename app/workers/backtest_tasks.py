@@ -32,7 +32,7 @@ def execute_backtest_task(backtest_id: str):
         from app.engines.backtest_engine.pipeline import BacktestPipeline
 
         settings = get_settings()
-        engine = create_async_engine(settings.DATABASE_URL)
+        engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         Session = async_sessionmaker(engine, expire_on_commit=False)
 
         async with Session() as db:

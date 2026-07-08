@@ -50,7 +50,7 @@ def train_model_task(
         from app.engines.model_training_engine.dataset_assembler import assemble_training_data
         from app.engines.model_training_engine.trainer import ModelTrainer
 
-        async_engine = create_async_engine(settings.DATABASE_URL)
+        async_engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         AsyncSess = async_sessionmaker(async_engine, expire_on_commit=False)
 
         async with AsyncSess() as db:
@@ -117,7 +117,7 @@ def tune_model_task(
         from app.engines.model_training_engine.tuning import tune_hyperparameters
 
         settings = get_settings()
-        async_engine = create_async_engine(settings.DATABASE_URL)
+        async_engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         AsyncSess = async_sessionmaker(async_engine, expire_on_commit=False)
 
         async with AsyncSess() as db:

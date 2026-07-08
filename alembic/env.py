@@ -20,13 +20,8 @@ import app.db.models_registry  # noqa: F401  (registers all ORM models)
 config = context.config
 settings = get_settings()
 
-# Set the database URL from settings
-db_url = settings.DATABASE_URL
-
-# For SQLite, we need special handling
-connect_args = {}
-if db_url.startswith("sqlite"):
-    connect_args["check_same_thread"] = False
+# Build SQLite URL from path directly
+db_url = f"sqlite+aiosqlite:///{settings.SQLITE_PATH}"
 
 config.set_main_option("sqlalchemy.url", db_url)
 
@@ -59,7 +54,7 @@ async def run_migrations_online() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args=connect_args,
+        connect_args={"check_same_thread": False},
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

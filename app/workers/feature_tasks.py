@@ -39,7 +39,7 @@ def generate_feature_task(
         from app.engines.feature_engine.pipeline import FeaturePipeline
 
         settings = get_settings()
-        async_engine = create_async_engine(settings.DATABASE_URL)
+        async_engine = create_async_engine(f"sqlite+aiosqlite:///{get_settings().SQLITE_PATH}")
         AsyncSess = async_sessionmaker(async_engine, expire_on_commit=False)
 
         async with AsyncSess() as db:
