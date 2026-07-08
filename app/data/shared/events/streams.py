@@ -6,8 +6,8 @@ Events published:
   DatasetServedFromCache — a delivery request was fulfilled from cache
   IngestionFailed       — an ingestion pipeline run failed
 
-In local mode, events are logged but not persisted. For production,
-configure EVENT_BACKEND=redis for Redis Streams support.
+In local mode, events are logged but not persisted. For production with
+external services, configure EVENT_BACKEND=redis for Redis Streams support.
 """
 
 from __future__ import annotations
