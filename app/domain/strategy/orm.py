@@ -5,7 +5,6 @@ A Strategy is the top-level research artifact: it references a set of
 features, a model, and signal logic, and can be promoted to the
 Portfolio Construction Layer once validated.
 """
-import uuid
 from typing import Optional
 
 from sqlalchemy import ARRAY, ForeignKey, String, Text
@@ -33,14 +32,14 @@ class Strategy(Base, UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin):
     universe: Mapped[list[str]] = mapped_column(ARRAY(String), default=list)
     timeframe: Mapped[str] = mapped_column(String(20), default="1d")
 
-    feature_ids: Mapped[list[uuid.UUID]] = mapped_column(
-        ARRAY(UUID(as_uuid=True)), default=list
+    feature_ids: Mapped[list[str]] = mapped_column(
+        ARRAY(String(36)), default=list
     )
-    model_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("models.id"), nullable=True
+    model_id: Mapped[Optional[str]] = mapped_column(
+        String(36), ForeignKey("models.id"), nullable=True
     )
-    signal_logic_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), nullable=True
+    signal_logic_id: Mapped[Optional[str]] = mapped_column(
+        String(36), nullable=True
     )
 
     status: Mapped[str] = mapped_column(String(20), default=StrategyStatus.DRAFT)
