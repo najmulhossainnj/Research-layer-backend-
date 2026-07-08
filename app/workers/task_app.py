@@ -1,18 +1,15 @@
 """
-Local task application - replaces Celery + Redis.
+Local task application - background job execution.
 
 All long-running Research Layer jobs (model training, feature generation,
 backtest runs, Optuna tuning studies) are dispatched as background tasks so
 the FastAPI process returns immediately with a task ID the client can poll.
 
-This module provides a Celery-compatible interface using the local task queue.
-
 For local development:
     Tasks are executed in a ThreadPoolExecutor within the same process.
     No external services required.
 
-The API is designed to be compatible with Celery tasks, so switching back
-to Celery+Redis is straightforward if needed.
+The API is designed to be task-queue compatible for future scaling needs.
 """
 from typing import Any, Callable, Optional
 from functools import wraps
@@ -180,12 +177,12 @@ def local_task(func: Optional[Callable] = None, *, bind: bool = False, name: Opt
     return decorator(func)
 
 
-# Create the local celery_app with the same interface
+# Create the local task_app
 class LocalCeleryApp:
     """
-    A Celery-like app interface for local task execution.
+    A task queue app interface for local execution.
     
-    Provides backward compatibility with Celery-based code.
+    Provides task queue compatible interface for background job execution.
     """
     
     def __init__(self, name: str = "research_layer"):
@@ -213,10 +210,10 @@ class LocalCeleryApp:
 
 
 # Create the app instance
-celery_app = LocalCeleryApp("research_layer")
+task_app = LocalCeleryApp("research_layer")
 
 
-# For backward compatibility with imports like `from celery.result import AsyncResult`
+# For backward compatibility with task queue patterns
 class AsyncResult:
     """Backward-compatible alias."""
     def __new__(cls, task_id: str, app=None):

@@ -9,7 +9,7 @@ GET /api/v1/backtests/{id}.
 import asyncio
 import uuid
 
-from app.workers.celery_app import celery_app
+from app.workers.task_app import task_app as celery_app
 
 
 def _run_async(coro):
