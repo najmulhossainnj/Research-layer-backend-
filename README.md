@@ -227,7 +227,7 @@ Hedge-fund-backend/
   update/delete experiments, plus `POST /experiments/compare` which diffs
   metrics across up to 10 runs and highlights the best per metric.
 - **LOCAL (SQLite + DiskCache + APScheduler) workers** (`workers/`): `training_tasks.py` (train + tune),
-  `feature_tasks.py` (generate), shared `celery_app.py` instance.
+  `feature_tasks.py` (generate), shared `task_app.py` instance (no external broker needed).
 - **`GET /api/v1/tasks/{task_id}`** — generic task-status polling endpoint.
 
 ### Phase 5 — vectorbt + Backtrader Integration
@@ -298,9 +298,9 @@ On Railway, deploy **two separate services** that share environment variables:
 4. Set environment variables:
    ```
    DATABASE_URL=<Railway LOCAL (SQLite + DiskCache + APScheduler) connection string>
-   REDIS_URL=<Not needed LOCAL (SQLite + DiskCache + APScheduler) URL>
-   CELERY_BROKER_URL=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
-   CELERY_RESULT_BACKEND=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
+   REDIS_URL=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
+   CELERY_BROKER_URL=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
+   CELERY_RESULT_BACKEND=# Not needed - using LOCAL (SQLite + DiskCache + APScheduler) URL>
    S3_ENDPOINT_URL=<Cloudflare R2 endpoint>
    S3_ACCESS_KEY=<R2 access key>
    S3_SECRET_KEY=<R2 secret key>
@@ -335,8 +335,8 @@ See Docker Compose section above for full local stack.
 See `.env.example` for all configurable options.
 
 **Required for async backtest execution:**
-- `CELERY_BROKER_URL` - LOCAL (SQLite + DiskCache + APScheduler) URL (broker)
-- `CELERY_RESULT_BACKEND` - LOCAL (SQLite + DiskCache + APScheduler) URL (results)
+- `CELERY_BROKER_URL` - NOT NEEDED (local backend)
+- `CELERY_RESULT_BACKEND` - NOT NEEDED (local backend)
 
 When these are configured, async execution works automatically. The backend gracefully falls back to sync execution if LOCAL (SQLite + DiskCache + APScheduler) is unavailable.
 

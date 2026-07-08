@@ -275,7 +275,7 @@ pip install -r requirements.txt
 
 # Configure environment
 cp .env.example .env
-# Edit .env with your database/redis/minio settings
+# Edit .env with your settings (all local by default)
 
 # Run migrations
 alembic revision --autogenerate -m "init schema"
@@ -303,13 +303,13 @@ docker-compose exec app alembic upgrade head
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | sqlite+aiosqlite://user:pass@localhost/db | LOCAL (SQLite + DiskCache + APScheduler) connection |
-| `REDIS_URL` | redis://localhost:6379/0 | LOCAL (SQLite + DiskCache + APScheduler) connection |
+| `REDIS_URL` | NOT NEEDED (SQLite + DiskCache + APScheduler) connection |
 | `MINIO_ENDPOINT` | localhost:9000 | MinIO/S3 endpoint |
 | `MINIO_ACCESS_KEY` | minioadmin | MinIO access key |
 | `MINIO_SECRET_KEY` | minioadmin | MinIO secret key |
 | `MINIO_BUCKET` | hedge-fund-artifacts | S3 bucket name |
 | `DATA_SERVICE_URL` | http://localhost:8001 | Data layer URL |
-| `CELERY_BROKER_URL` | redis://localhost:6379/1 | LOCAL (SQLite + DiskCache + APScheduler) broker |
+| `CELERY_BROKER_URL` | NOT NEEDED (SQLite + DiskCache + APScheduler) broker |
 | `GEMINI_API_KEY` | - | Gemini API key for AI agents |
 
 ---
@@ -367,13 +367,13 @@ docker-compose exec app alembic upgrade head
 
 ```bash
 # Feature generation worker
-celery -A app.workers.celery_app worker -l info -Q feature_queue -n feature_worker
+# Background tasks run in-process - no celery worker needed -l info -Q feature_queue -n feature_worker
 
 # Model training worker
-celery -A app.workers.celery_app worker -l info -Q training_queue -n training_worker
+# Background tasks run in-process - no celery worker needed -l info -Q training_queue -n training_worker
 
 # Backtest worker
-celery -A app.workers.celery_app worker -l info -Q backtest_queue -n backtest_worker
+# Background tasks run in-process - no celery worker needed -l info -Q backtest_queue -n backtest_worker
 ```
 
 ### Task Endpoints
