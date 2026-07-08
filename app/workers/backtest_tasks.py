@@ -2,7 +2,7 @@
 Async backtest execution task.
 
 Long backtests (multi-year, large universes, Backtrader with many
-indicators) run as Celery background tasks so the API returns immediately.
+indicators) run as background tasks so the API returns immediately.
 Poll GET /api/v1/tasks/{task_id} for status, then fetch results from
 GET /api/v1/backtests/{id}.
 """
@@ -20,8 +20,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="backtests.execute")
-def execute_backtest_task(self, backtest_id: str):
+@celery_app.task(name="backtests.execute")
+def execute_backtest_task(backtest_id: str):
     async def _inner():
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -52,5 +52,4 @@ def execute_backtest_task(self, backtest_id: str):
                 "max_drawdown": updated_bt.metrics.get("risk_max_drawdown"),
             }
 
-    self.update_state(state="STARTED", meta={"backtest_id": backtest_id})
     return _run_async(_inner())

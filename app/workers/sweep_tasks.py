@@ -1,14 +1,11 @@
 """
 Backtest parameter sweep.
 
-Lets the Backtest Agent (Phase 10) and the Backtest Lab UI run a grid of
+Lets the Backtest Agent and the Backtest Lab UI run a grid of
 configs (e.g. varying commission, capital, signal thresholds) and get
 back a ranked leaderboard without manually wiring N separate backtest
 rows. Each config in the sweep shares the same strategy_id and engine;
 only the fields inside `config` vary.
-
-Dispatched as a Celery chord so individual runs execute in parallel on the
-worker pool and results are aggregated once all finish.
 """
 import asyncio
 import uuid
@@ -24,9 +21,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="backtests.sweep")
+@celery_app.task(name="backtests.sweep")
 def parameter_sweep_task(
-    self,
     strategy_id: str,
     engine: str,
     base_config: dict,
@@ -89,16 +85,10 @@ def parameter_sweep_task(
                         "error": str(exc),
                     })
 
-            self.update_state(
-                state="PROGRESS",
-                meta={"completed": i + 1, "total": len(param_grid)},
-            )
-
         rows.sort(key=lambda r: r["score"], reverse=True)
         for rank, row in enumerate(rows, 1):
             row["rank"] = rank
 
         return {"leaderboard": rows, "total_runs": len(rows)}
 
-    self.update_state(state="STARTED", meta={"strategy_id": strategy_id, "n_configs": len(param_grid)})
     return _run_async(_inner())

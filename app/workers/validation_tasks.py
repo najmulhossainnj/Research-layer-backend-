@@ -2,7 +2,7 @@
 Async walk-forward validation task.
 
 Walk-forward analysis on large datasets (5+ year, daily, 10 folds,
-refit=True) takes minutes — long enough to warrant Celery dispatch.
+refit=True) takes minutes — long enough to warrant background dispatch.
 """
 import asyncio
 import uuid
@@ -19,8 +19,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="validation.walk_forward")
-def walk_forward_task(self, payload: dict):
+@celery_app.task(name="validation.walk_forward")
+def walk_forward_task(payload: dict):
     async def _inner():
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -77,15 +77,11 @@ def walk_forward_task(self, payload: dict):
             "mlflow_run_id": result.mlflow_run_id,
         }
 
-    self.update_state(
-        state="STARTED",
-        meta={"strategy_id": payload.get("strategy_id"), "symbol": payload.get("symbol")},
-    )
     return _run_async(_inner())
 
 
-@celery_app.task(bind=True, name="validation.cpcv")
-def cpcv_task(self, payload: dict):
+@celery_app.task(name="validation.cpcv")
+def cpcv_task(payload: dict):
     """Async CPCV validation."""
     async def _inner():
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -134,5 +130,4 @@ def cpcv_task(self, payload: dict):
             "mlflow_run_id": result.mlflow_run_id,
         }
 
-    self.update_state(state="STARTED", meta={"strategy_id": payload.get("strategy_id")})
     return _run_async(_inner())

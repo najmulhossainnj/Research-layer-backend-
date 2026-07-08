@@ -18,9 +18,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="signals.generate")
+@celery_app.task(name="signals.generate")
 def generate_signals_task(
-    self,
     model_id: str,
     feature_ids: list[str],
     symbol: str,
@@ -102,5 +101,4 @@ def generate_signals_task(
                 "signal_counts": signals.value_counts().to_dict(),
             }
 
-    self.update_state(state="STARTED", meta={"model_id": model_id, "symbol": symbol})
     return _run_async(_inner())

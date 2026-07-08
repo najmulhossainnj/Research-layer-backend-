@@ -5,6 +5,8 @@ This is a merged service combining:
 - Research Layer: Strategy, Feature, Model, Signal, Backtest, Validation
 - Data Layer: Market data ingestion and delivery (OHLCV, News, Fundamentals, Macro)
 
+Local backend: SQLite + DiskCache + APScheduler
+
 Run locally with:
     uvicorn app.main:app --reload
 
@@ -35,6 +37,7 @@ from app.api.tracking.router import router as tracking_router
 from app.api.validation.router import router as validation_router
 from app.api.data.router import router as data_router
 from app.core.config import get_settings
+from app.workers.task_queue import shutdown as shutdown_task_queue, is_ready as task_queue_ready
 
 settings = get_settings()
 
@@ -51,8 +54,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     yield
 
-    # Shutdown: cleanup if needed
-    pass
+    # Shutdown: cleanup task queue
+    shutdown_task_queue()
 
 
 app = FastAPI(
@@ -81,9 +84,11 @@ async def health() -> dict:
         "status": "ok",
         "service": "Unified Quant Research Platform",
         "version": "1.0.0",
+        "backend": "local (SQLite + DiskCache)",
         "components": {
             "research_layer": "operational",
-            "data_layer": "operational" if settings.DATA_SERVICE_URL else "not_configured"
+            "data_layer": "operational" if settings.DATA_SERVICE_URL else "not_configured",
+            "task_queue": "operational" if task_queue_ready() else "not_ready"
         }
     }
 
@@ -98,7 +103,7 @@ app.include_router(feature_generation_router,  prefix=api_prefix, tags=["feature
 app.include_router(models_router,              prefix=api_prefix, tags=["models"])
 app.include_router(model_training_router,      prefix=api_prefix, tags=["models"])
 app.include_router(backtests_router,           prefix=api_prefix, tags=["backtests"])
-app.include_router(sweep_router,               prefix=api_prefix, tags=["backtests"])
+app.include_router(sweep_router,              prefix=api_prefix, tags=["backtests"])
 app.include_router(experiments_router,         prefix=api_prefix, tags=["experiments"])
 app.include_router(signals_router,             prefix=api_prefix, tags=["signals"])
 app.include_router(tracking_router,            prefix=api_prefix, tags=["tracking"])
@@ -112,15 +117,21 @@ app.include_router(data_router,                prefix=api_prefix, tags=["data"])
 
 @app.get("/api/v1/tasks/{task_id}", tags=["tasks"])
 async def get_task_status(task_id: str):
-    """Poll the status and result of any Celery background task."""
-    from celery.result import AsyncResult
-    from app.workers.celery_app import celery_app
+    """Poll the status and result of any background task."""
+    from app.workers.task_queue import get_task_status as get_local_task_status
 
-    result = AsyncResult(task_id, app=celery_app)
-    response: dict = {"task_id": task_id, "status": result.status}
-    if result.ready():
-        if result.successful():
-            response["result"] = result.result
-        else:
-            response["error"] = str(result.result)
+    status = get_local_task_status(task_id)
+    if status is None:
+        return {"task_id": task_id, "status": "NOT_FOUND", "error": "Task not found"}
+    
+    response = {
+        "task_id": task_id,
+        "status": status.get("status", "UNKNOWN"),
+    }
+    
+    if status.get("error"):
+        response["error"] = status["error"]
+    elif status.get("result") is not None:
+        response["result"] = status["result"]
+    
     return response

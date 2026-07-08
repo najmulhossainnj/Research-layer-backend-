@@ -1,10 +1,13 @@
 # ═══════════════════════════════════════════════════════════════════
-# Unified Quant Research Platform - Dockerfile
+# Unified Quant Research Platform - Dockerfile (Local Backend)
 # ═══════════════════════════════════════════════════════════════════
 # 
 # This Dockerfile builds a unified container with:
 # - Research Layer: Strategy, Feature, Model, Signal, Backtest, Validation
 # - Data Layer: Market data ingestion and delivery
+#
+# Local Backend: SQLite + DiskCache + APScheduler
+# No external services required (PostgreSQL, Redis, Celery)
 #
 # Optimized for production with multi-stage builds.
 
@@ -12,9 +15,9 @@ FROM python:3.12-slim as builder
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (no PostgreSQL client needed)
 RUN apt-get update && apt-get install -y \
-    gcc g++ git curl libpq-dev \
+    gcc g++ git curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -32,9 +35,9 @@ WORKDIR /app
 COPY --from=builder /root/.local /root/.local
 ENV PATH=/root/.local/bin:$PATH
 
-# Install runtime system dependencies
+# Install runtime system dependencies (minimal)
 RUN apt-get update && apt-get install -y \
-    curl libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy application code
@@ -52,5 +55,5 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
+# Run the application (local backend with threading workers)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

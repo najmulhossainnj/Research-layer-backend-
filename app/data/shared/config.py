@@ -1,7 +1,23 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import model_validator
 from functools import lru_cache
+import os
 from typing import Optional
+
+
+def _get_default_db_path() -> str:
+    """Get default database path in app data directory."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    data_dir = os.path.join(app_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, "research_layer.db")
+
+
+def _get_default_cache_dir() -> str:
+    """Get default cache directory."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    cache_dir = os.path.join(app_dir, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
 
 
 class Settings(BaseSettings):
@@ -9,27 +25,27 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
     # ── Object Storage (MinIO / S3) ──────────────────────────────────────
-    MINIO_ENDPOINT: str
-    MINIO_ACCESS_KEY: str
-    MINIO_SECRET_KEY: str
-    MINIO_BUCKET: str
-    MINIO_SECURE: bool = True
+    MINIO_ENDPOINT: str = "http://localhost:9000"
+    MINIO_ACCESS_KEY: str = "minioadmin"
+    MINIO_SECRET_KEY: str = "minioadmin"
+    MINIO_BUCKET: str = "market-data"
+    MINIO_SECURE: bool = False
 
-    # ── PostgreSQL ────────────────────────────────────────────────────────
-    DATABASE_URL: str
+    # ── Database (SQLite) ────────────────────────────────────────────────────────
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{_get_default_db_path()}"
 
-    # ── Redis ─────────────────────────────────────────────────────────────
-    REDIS_URL: str
+    # ── Cache (DiskCache) ──────────────────────────────────────────────
+    CACHE_DIR: str = _get_default_cache_dir()
 
     # ── Provider API Keys ─────────────────────────────────────────────────
     NEWSAPI_KEY: Optional[str] = None        
     FRED_API_KEY: Optional[str] = None       
 
     # ── Authentication ────────────────────────────────────────────────────
-    DATA_SERVICE_API_KEY: str 
+    DATA_SERVICE_API_KEY: str = "dev-api-key-change-in-production"
 
     # ── Application ───────────────────────────────────────────────────────
-    APP_ENV: str = "production"
+    APP_ENV: str = "local"
     LOG_LEVEL: str = "INFO"
     APP_HOST: str = "0.0.0.0"
     APP_PORT: int = 8001
@@ -44,22 +60,6 @@ class Settings(BaseSettings):
     CACHE_TTL_NEWS: int = 21_600              
     CACHE_TTL_FUNDAMENTALS: int = 86_400      
     CACHE_TTL_MACRO: int = 259_200            
-
-    @model_validator(mode="before")
-    @classmethod
-    def fix_async_driver_prefix(cls, data: dict) -> dict:
-        """Automatically converts Render's postgres:// to postgresql+asyncpg://"""
-        url = data.get("DATABASE_URL") or data.get("database_url")
-        if url and isinstance(url, str):
-            if url.startswith("postgresql://") and not url.startswith("postgresql+asyncpg://"):
-                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            elif url.startswith("postgres://"):
-                url = url.replace("postgres://", "postgresql+asyncpg://", 1)
-            
-            # Write it back into the dictionary keys Pydantic expects
-            data["DATABASE_URL"] = url
-            data["database_url"] = url
-        return data
 
 
 @lru_cache()

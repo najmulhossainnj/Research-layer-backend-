@@ -18,9 +18,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="features.generate")
+@celery_app.task(name="features.generate")
 def generate_feature_task(
-    self,
     feature_id: str,
     symbol: str,
     timeframe: str,
@@ -73,5 +72,4 @@ def generate_feature_task(
                 "storage_uri": result.dataset.storage_uri,
             }
 
-    self.update_state(state="STARTED", meta={"feature_id": feature_id, "symbol": symbol})
     return _run_async(_inner())

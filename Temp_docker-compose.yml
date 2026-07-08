@@ -1,55 +1,24 @@
 # ═══════════════════════════════════════════════════════════════════
-# Unified Quant Research Platform - Docker Compose
+# Unified Quant Research Platform - Docker Compose (Local Backend)
 # ═══════════════════════════════════════════════════════════════════
 # 
-# This docker-compose.yml orchestrates the complete platform:
-# - PostgreSQL: Primary database for strategies, features, models, etc.
-# - Redis: Cache and Celery message broker
-# - MinIO: Object storage for artifacts and feature store
+# This docker-compose.yml orchestrates the complete platform with local backend:
+# - SQLite: Primary database for strategies, features, models, etc.
+# - DiskCache: Local disk-based caching
+# - MinIO: Object storage for artifacts and feature store (optional)
 # - MLflow: Experiment tracking
 # - Unified API: Single container with Research + Data layers
-# - Celery Workers: Background task processing
+#
+# Local backend means no external services required (PostgreSQL, Redis, etc.)
+# Everything runs in-process with local disk storage.
 #
 # Usage:
 #   docker-compose up -d           # Start all services
 #   docker-compose logs -f api    # Follow API logs
 #   docker-compose down           # Stop all services
-#   docker-compose down -v        # Stop and remove volumes (WARNING: deletes data)
 # ═══════════════════════════════════════════════════════════════════
 
 services:
-  # ── Database ─────────────────────────────────────────────────────
-  postgres:
-    image: postgres:15-alpine
-    container_name: quant_postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: research_layer
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # ── Redis ─────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: quant_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   # ── MinIO (S3-compatible storage) ──────────────────────────────────
   minio:
     image: minio/minio:latest
@@ -73,7 +42,7 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: quant_mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri postgresql://postgres:postgres@postgres:5432/research_layer --default-artifact-root s3://research-artifacts/mlflow
+    command: mlflow server --host 0.0.0.0 --port 5000 --default-artifact-root s3://research-artifacts/mlflow
     environment:
       MLFLOW_S3_ENDPOINT_URL: http://minio:9000
       AWS_ACCESS_KEY_ID: minioadmin
@@ -81,8 +50,6 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      postgres:
-        condition: service_healthy
       minio:
         condition: service_healthy
 
@@ -93,12 +60,10 @@ services:
       dockerfile: Dockerfile.unified
     container_name: quant_api
     environment:
-      # Database
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/research_layer
-      # Redis
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      # Database (SQLite - local file)
+      DATABASE_URL: sqlite+aiosqlite:///app_data/research_layer.db
+      # Cache (DiskCache - local directory)
+      CACHE_DIR: /app_cache
       # S3/MinIO
       S3_ENDPOINT_URL: http://minio:9000
       S3_ACCESS_KEY: minioadmin
@@ -117,11 +82,10 @@ services:
       SECRET_KEY: change-me-in-production
     ports:
       - "8000:8000"
+    volumes:
+      - app_data:/app_data
+      - app_cache:/app_cache
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
       minio:
         condition: service_healthy
     healthcheck:
@@ -130,37 +94,11 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── Celery Workers ────────────────────────────────────────────────
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile.worker
-    container_name: quant_celery_worker
-    command: celery -A app.workers.celery_app worker --loglevel=info
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/research_layer
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
-      CELERY_RESULT_BACKEND: redis://redis:6379/2
-      S3_ENDPOINT_URL: http://minio:9000
-      S3_ACCESS_KEY: minioadmin
-      S3_SECRET_KEY: minioadmin
-      DATA_SERVICE_URL: http://api:8000
-      DATA_SERVICE_API_KEY: dev-api-key-change-in-production
-      APP_ENV: production
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      api:
-        condition: service_healthy
-
 # ── Volumes ────────────────────────────────────────────────────────
 volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
+  app_data:      # SQLite database file
+  app_cache:     # DiskCache directory
+  minio_data:    # MinIO object storage
 
 # ── Networks ───────────────────────────────────────────────────────
 networks:

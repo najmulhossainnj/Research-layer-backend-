@@ -123,19 +123,17 @@ async def execute_backtest(
     if bt.status == BacktestStatus.RUNNING:
         raise HTTPException(status_code=409, detail="Backtest is already running")
 
-    # Try async mode with Celery, fall back to sync if not available
+    # Try async mode with local task queue, fall back to sync if not available
     if payload.async_mode:
         try:
             from app.workers.backtest_tasks import execute_backtest_task
-            from app.core.config import get_settings
-            settings = get_settings()
             
-            logger.info(f"Dispatching backtest {backtest_id} to Celery. Broker: {settings.CELERY_BROKER_URL}")
-            task = execute_backtest_task.delay(str(backtest_id))
-            logger.info(f"Task dispatched successfully. Task ID: {task.id}")
-            return {"task_id": task.id, "status": "PENDING"}
+            logger.info(f"Dispatching backtest {backtest_id} to local task queue")
+            task_id = execute_backtest_task.delay(str(backtest_id))
+            logger.info(f"Task dispatched successfully. Task ID: {task_id}")
+            return {"task_id": task_id, "status": "PENDING"}
         except Exception as e:
-            logger.error(f"Celery dispatch failed: {type(e).__name__}: {e}")
+            logger.error(f"Local task dispatch failed: {type(e).__name__}: {e}")
             # Fall back to sync execution
             logger.info("Falling back to synchronous execution")
 
@@ -162,15 +160,13 @@ async def execute_backtest_async(
 
     try:
         from app.workers.backtest_tasks import execute_backtest_task
-        from app.core.config import get_settings
-        settings = get_settings()
         
-        logger.info(f"Async dispatching backtest {backtest_id} to Celery. Broker: {settings.CELERY_BROKER_URL}")
-        task = execute_backtest_task.delay(str(backtest_id))
-        logger.info(f"Async task dispatched. Task ID: {task.id}")
-        return {"task_id": task.id, "status": "PENDING"}
+        logger.info(f"Async dispatching backtest {backtest_id} to local task queue")
+        task_id = execute_backtest_task.delay(str(backtest_id))
+        logger.info(f"Async task dispatched. Task ID: {task_id}")
+        return {"task_id": task_id, "status": "PENDING"}
     except Exception as e:
-        logger.error(f"Celery async dispatch failed: {type(e).__name__}: {e}")
+        logger.error(f"Local async dispatch failed: {type(e).__name__}: {e}")
         # Fall back to sync execution
         logger.info(f"Async fallback: executing synchronously for {backtest_id}")
         pipeline = BacktestPipeline()
@@ -280,93 +276,17 @@ async def list_available_engines():
 
 # ── Debug / Health ──────────────────────────────────────────────────────────
 
-@router.get("/debug/celery-status")
-async def celery_status():
-    """Check Celery/Redis connectivity for debugging async execution."""
-    import logging
-    logger = logging.getLogger(__name__)
+@router.get("/debug/task-status")
+async def task_status():
+    """Check local task queue status for debugging async execution."""
+    from app.workers.task_queue import is_ready, _task_state
     
     result = {
-        "celery_configured": False,
-        "redis_reachable": False,
-        "broker_url": None,
-        "workers_available": [],
-        "error": None,
+        "task_queue_ready": is_ready(),
+        "backend": "local (SQLite + DiskCache)",
+        "total_tasks": len(_task_state.list_all()),
+        "task_types": list(set(t.name for t in _task_state.list_all())),
     }
-    
-    try:
-        from app.core.config import get_settings
-        settings = get_settings()
-        result["broker_url"] = settings.CELERY_BROKER_URL
-        result["celery_configured"] = bool(settings.CELERY_BROKER_URL)
-    except Exception as e:
-        result["error"] = f"Config error: {e}"
-        return result
-    
-    # Test Redis connectivity (supports both redis:// and rediss:// for Upstash TLS)
-    try:
-        import redis
-        from urllib.parse import urlparse
-        
-        redis_url = settings.CELERY_BROKER_URL
-        parsed = urlparse(redis_url)
-        
-        # Determine if TLS is required (rediss://)
-        use_tls = redis_url.startswith("rediss://")
-        
-        # Extract connection parameters
-        host = parsed.hostname or "localhost"
-        port = parsed.port or 6379
-        username = parsed.username or None
-        password = parsed.password or None
-        db = parsed.path.lstrip("/") if parsed.path else "0"
-        
-        # Create Redis client with appropriate parameters
-        if use_tls:
-            r = redis.Redis(
-                host=host,
-                port=port,
-                username=username,
-                password=password,
-                db=int(db) if db.isdigit() else 0,
-                ssl=True,
-                ssl_cert_reqs="none",  # For Upstash compatibility
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
-        else:
-            r = redis.Redis(
-                host=host,
-                port=port,
-                username=username if username else None,
-                password=password,
-                db=int(db) if db.isdigit() else 0,
-                socket_connect_timeout=5,
-                socket_timeout=5,
-            )
-        
-        r.ping()
-        result["redis_reachable"] = True
-        logger.info(f"Redis ping successful ({host}:{port})")
-    except Exception as e:
-        result["error"] = f"Redis error: {e}"
-        logger.error(f"Redis connectivity check failed: {e}")
-    
-    # Check Celery worker status
-    try:
-        from app.workers.celery_app import celery_app
-        inspect = celery_app.control.inspect()
-        stats = inspect.stats()
-        if stats:
-            result["workers_available"] = list(stats.keys())
-        else:
-            result["workers_available"] = []
-            if not result.get("error"):
-                result["error"] = "No workers available"
-    except Exception as e:
-        err_msg = f"Celine inspect error: {e}"
-        result["error"] = (result.get("error") + " | " + err_msg) if result.get("error") else err_msg
-        logger.error(f"Celery inspect failed: {e}")
     
     return result
 

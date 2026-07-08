@@ -8,11 +8,30 @@ or a .env file without touching code.
 Combines settings from:
 - Research Layer: Strategies, Features, Models, Signals, Backtests, Validation
 - Data Layer: Market data ingestion and delivery
+
+Local backend: SQLite + DiskCache + APScheduler
 """
+import os
 from functools import lru_cache
 from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _get_default_db_path() -> str:
+    """Get default database path in app data directory."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    data_dir = os.path.join(app_dir, "data")
+    os.makedirs(data_dir, exist_ok=True)
+    return os.path.join(data_dir, "research_layer.db")
+
+
+def _get_default_cache_dir() -> str:
+    """Get default cache directory."""
+    app_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    cache_dir = os.path.join(app_dir, "cache")
+    os.makedirs(cache_dir, exist_ok=True)
+    return cache_dir
 
 
 class Settings(BaseSettings):
@@ -21,14 +40,17 @@ class Settings(BaseSettings):
     APP_ENV: str = "local"
     API_V1_PREFIX: str = "/api/v1"
 
-    # ── Database ────────────────────────────────────────────────────
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/research_layer"
+    # ── Database (SQLite) ────────────────────────────────────────────
+    DATABASE_URL: str = f"sqlite+aiosqlite:///{_get_default_db_path()}"
     TIMESCALE_URL: Optional[str] = None
 
-    # ── Cache / broker ───────────────────────────────────────────────
-    REDIS_URL: str = "redis://localhost:6379/0"
-    CELERY_BROKER_URL: str = "redis://localhost:6379/1"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/2"
+    # ── Cache (DiskCache) ───────────────────────────────────────────
+    CACHE_DIR: str = _get_default_cache_dir()
+    CACHE_TTL_DEFAULT: int = 3600  # 1 hour default TTL
+
+    # ── Background Tasks (APScheduler) ───────────────────────────────
+    TASK_THREAD_POOL_SIZE: int = 4
+    TASK_MAX_WORKERS: int = 2
 
     # ── Object storage ───────────────────────────────────────────────
     S3_ENDPOINT_URL: str = "http://localhost:9000"
@@ -44,7 +66,7 @@ class Settings(BaseSettings):
 
     # ── Messaging ────────────────────────────────────────────────────
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
-    EVENT_BACKEND: str = "kafka"  # "kafka" | "nats" | "noop"
+    EVENT_BACKEND: str = "noop"  # Disabled for local backend
 
     # ── Security ─────────────────────────────────────────────────────
     SECRET_KEY: str = "change-me-in-production"

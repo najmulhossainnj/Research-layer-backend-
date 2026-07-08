@@ -2,10 +2,7 @@
 Async model training tasks.
 
 The `/models/{id}/train` endpoint can either run synchronously (small
-datasets, dev mode) or dispatch here for background execution. The task
-runs in its own DB session (sync SQLAlchemy via `AsyncSession` is not
-safe across process boundaries, so we use a sync sessionmaker inside the
-worker process).
+datasets, dev mode) or dispatch here for background execution.
 """
 import asyncio
 import uuid
@@ -14,7 +11,7 @@ from app.workers.celery_app import celery_app
 
 
 def _run_async(coro):
-    """Run an async coroutine from a Celery task (sync context)."""
+    """Run an async coroutine from a task (sync context)."""
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)
@@ -22,9 +19,8 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(bind=True, name="training.train_model")
+@celery_app.task(name="training.train_model")
 def train_model_task(
-    self,
     model_id: str,
     feature_ids: list[str],
     symbol: str,
@@ -35,24 +31,16 @@ def train_model_task(
     cv_config: dict | None = None,
 ):
     """Train a model asynchronously.  Dispatched from POST /models/{id}/train
-    when `async_mode=true` is passed as a query param (Phase 3+)."""
+    when `async_mode=true` is passed as a query param."""
     from datetime import datetime
 
-    from sqlalchemy.orm import sessionmaker
-    from sqlalchemy import create_engine
-
     from app.core.config import get_settings
-    from app.db.session import Base
-    import app.db.models_registry  # noqa: F401
 
     settings = get_settings()
-    # Use a sync engine inside the worker (asyncpg is not fork-safe).
-    sync_url = settings.DATABASE_URL.replace("+asyncpg", "+psycopg2")
-    engine = create_engine(sync_url)
-    SyncSession = sessionmaker(bind=engine)
 
     async def _inner():
-        from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+        from sqlalchemy import select
 
         from app.db.crud_base import CRUDRepository
         from app.domain.model.orm import MLModel
@@ -70,8 +58,6 @@ def train_model_task(
             model = await repo.get(db, uuid.UUID(model_id))
             if model is None:
                 raise ValueError(f"Model {model_id} not found")
-
-            from sqlalchemy import select
 
             result = await db.execute(
                 select(Feature).where(Feature.id.in_([uuid.UUID(fid) for fid in feature_ids]))
@@ -100,14 +86,11 @@ def train_model_task(
                 "cv_metrics": cv_result.summary(),
             }
 
-    self.update_state(state="STARTED", meta={"model_id": model_id})
-    result = _run_async(_inner())
-    return result
+    return _run_async(_inner())
 
 
-@celery_app.task(bind=True, name="training.tune_model")
+@celery_app.task(name="training.tune_model")
 def tune_model_task(
-    self,
     plugin_key: str,
     feature_ids: list[str],
     symbol: str,
@@ -168,5 +151,4 @@ def tune_model_task(
             "n_trials": tuning_result.n_trials,
         }
 
-    self.update_state(state="STARTED", meta={"plugin_key": plugin_key})
     return _run_async(_inner())

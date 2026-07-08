@@ -3,10 +3,11 @@ Alembic migration environment.
 
 Uses the app's async engine settings and imports the model registry so
 autogenerate can detect schema changes across all domain models.
+
+SQLite-compatible configuration.
 """
 import asyncio
 from logging.config import fileConfig
-import ssl
 
 from alembic import context
 from sqlalchemy import pool
@@ -19,12 +20,13 @@ import app.db.models_registry  # noqa: F401  (registers all ORM models)
 config = context.config
 settings = get_settings()
 
-# 1. Take the Neon URL string
+# Set the database URL from settings
 db_url = settings.DATABASE_URL
 
-# 2. Chop off "?sslmode=require" completely so asyncpg doesn't throw a ClientConfigurationError
-if "?" in db_url:
-    db_url = db_url.split("?")[0]
+# For SQLite, we need special handling
+connect_args = {}
+if db_url.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
 
 config.set_main_option("sqlalchemy.url", db_url)
 
@@ -53,16 +55,11 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    # 3. Create a clean, verified SSL context that Neon requires to stay open
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
-
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"ssl": ctx},  # Inject the secure context safely here
+        connect_args=connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
