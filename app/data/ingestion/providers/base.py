@@ -5,7 +5,7 @@ Rules:
 - No provider-specific logic leaks outside this package.
 - All methods are async (wrap sync SDKs with asyncio.to_thread).
 - Retry logic lives inside each provider, not in the pipeline.
-- Circuit-breaker state is stored in Redis (key: cb:{provider_name}).
+- Circuit-breaker state is stored in memory (key: cb:{provider_name}).
 """
 
 from __future__ import annotations

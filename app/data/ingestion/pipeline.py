@@ -140,7 +140,7 @@ class IngestionPipeline:
         provider = provider_registry.get(provider_name)
 
         async with get_session() as session:
-            # ── Check DB registry (survived Redis flush) ──────────────────
+            # ── Check DB registry (survived cache flush) ──────────────────
             existing = await self._registry.get_by_hash(session, hash_val)
             if existing:
                 await self._cache_set(hash_val, existing.storage_uri, _cache_ttl("ohlcv", timeframe))

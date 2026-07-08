@@ -1,5 +1,5 @@
 """
-Local task queue system replacing Celery + Redis.
+Local task queue system for background job execution.
 
 This module provides an in-process background task execution system using:
 - concurrent.futures.ThreadPoolExecutor for async task execution

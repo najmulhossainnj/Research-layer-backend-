@@ -63,7 +63,7 @@ async def get_ohlcv(
     }
     hash_val = compute_hash("ohlcv", params)
 
-    # ── Step 1-2: Redis cache ─────────────────────────────────────────────
+    # ── Step 1-2: DiskCache ─────────────────────────────────────────────
     uri = await dataset_cache.get(hash_val)
     if uri:
         await publish_cache_hit(event_stream, hash_val=hash_val, symbol=symbol)

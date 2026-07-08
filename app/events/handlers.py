@@ -31,7 +31,7 @@ def handle_dataset_updated(event: dict) -> None:
 
 def _schedule_feature_regeneration(symbol: str | None, payload: dict) -> None:
     """
-    Dispatch a Celery task to regenerate features for the affected symbol.
+    Dispatch a background task to regenerate features for the affected symbol.
     The feature content-hash versioning (Phase 2) ensures only features
     whose source data actually changed get a new version.
     """
