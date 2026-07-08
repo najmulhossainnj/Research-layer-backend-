@@ -11,8 +11,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Index, Integer, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import ForeignKey, Index, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
@@ -31,8 +30,9 @@ class FeatureDataset(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ),
     )
 
-    feature_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("features.id"), nullable=False
+    # SQLite-compatible: store UUID as string
+    feature_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("features.id"), nullable=False
     )
 
     symbol: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -47,7 +47,7 @@ class FeatureDataset(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     storage_uri: Mapped[str] = mapped_column(String(500), nullable=False)
     row_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    columns: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    columns: Mapped[list[str]] = mapped_column(JSON, default=list)
 
     # Fingerprint of the underlying source data this was computed from,
     # so we can tell when regeneration is needed vs. safe to reuse.

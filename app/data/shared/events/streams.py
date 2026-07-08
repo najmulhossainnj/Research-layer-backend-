@@ -1,57 +1,54 @@
 """
-Event bus backed by Redis Streams.
+Event bus backed by in-memory queue (local mode).
 
 Events published:
   DatasetIngested       — a new dataset was written to object storage
-  DatasetServedFromCache — a delivery request was fulfilled from Redis cache
+  DatasetServedFromCache — a delivery request was fulfilled from cache
   IngestionFailed       — an ingestion pipeline run failed
 
-Stream name: data_service.events
+In local mode, events are logged but not persisted. For production,
+configure EVENT_BACKEND=redis for Redis Streams support.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from collections import deque
 from datetime import datetime, timezone
 from typing import Any
-
-import redis.asyncio as aioredis
 
 from shared.config import settings
 
 logger = logging.getLogger(__name__)
 
-STREAM_NAME = "data_service.events"
+# In-memory event log for local mode
+_event_log: deque[dict[str, Any]] = deque(maxlen=1000)
 
 
 class EventStream:
-    def __init__(self) -> None:
-        self._client: aioredis.Redis | None = None
-
-    async def _get_client(self) -> aioredis.Redis:
-        if self._client is None:
-            self._client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        return self._client
-
+    """Local event stream using in-memory deque."""
+    
     async def publish(self, event: str, payload: dict[str, Any]) -> None:
-        """Append an event to the Redis Stream. Non-blocking — never raises."""
+        """Log event to in-memory queue. Non-blocking — never raises."""
         try:
-            client = await self._get_client()
-            fields: dict[str, str] = {
+            event_record = {
                 "event": event,
-                "payload": json.dumps(payload),
+                "payload": payload,
                 "published_at": datetime.now(timezone.utc).isoformat(),
             }
-            await client.xadd(STREAM_NAME, fields)
+            _event_log.append(event_record)
+            logger.debug("Event published: %s", event)
         except Exception as exc:
-            # Event publishing must never crash the main pipeline
             logger.warning("EventStream.publish failed: %s", exc)
 
     async def close(self) -> None:
-        if self._client:
-            await self._client.aclose()
-            self._client = None
+        """No-op for local mode."""
+        pass
+
+    def get_recent_events(self, limit: int = 100) -> list[dict[str, Any]]:
+        """Get recent events from the log."""
+        return list(_event_log)[-limit:]
 
 
 # ── Pre-built event helpers ───────────────────────────────────────────────────

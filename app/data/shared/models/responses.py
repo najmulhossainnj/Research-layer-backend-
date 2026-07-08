@@ -72,7 +72,7 @@ class MacroRow(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str              # "healthy" | "degraded" | "unhealthy"
-    postgres: str
-    redis: str
-    minio: str
+    database: str            # SQLite health check
+    cache: str               # DiskCache health check
+    storage: str             # MinIO/S3 health check (optional)
     version: str = "1.0.0"

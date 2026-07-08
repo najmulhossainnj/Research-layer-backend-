@@ -9,7 +9,7 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import ForeignKey, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
@@ -30,8 +30,8 @@ class Experiment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     mlflow_run_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
-    parameters: Mapped[dict] = mapped_column(JSONB, default=dict)
-    metrics: Mapped[dict] = mapped_column(JSONB, default=dict)
-    artifacts: Mapped[dict] = mapped_column(JSONB, default=dict)
+    parameters: Mapped[dict] = mapped_column(JSON, default=dict)
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)
+    artifacts: Mapped[dict] = mapped_column(JSON, default=dict)
 
     strategy: Mapped["Strategy"] = relationship(back_populates="experiments")

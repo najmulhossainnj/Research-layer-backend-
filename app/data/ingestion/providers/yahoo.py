@@ -4,7 +4,7 @@ YahooProvider — wraps yfinance for OHLCV and fundamentals.
 Design decisions:
 - Every yfinance call is wrapped in asyncio.to_thread (blocking SDK).
 - Retry: exponential back-off via tenacity, max 3 attempts.
-- Circuit breaker: failure count stored in Redis. If >= threshold, raises
+- Circuit breaker: failure count stored in memory. If >= threshold, raises
   ProviderUnavailableError immediately without calling the upstream.
 - Never call yf.download() with multiple symbols — one symbol per call.
 """
@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
+import time
 from datetime import datetime, timezone
 from typing import Any
 
 import pandas as pd
-import redis.asyncio as aioredis
 import requests
 import yfinance as yf
 from tenacity import (
@@ -61,12 +62,62 @@ _FUNDAMENTAL_MAP: dict[str, str] = {
 _CB_KEY_PREFIX = "cb:yahoo:"
 
 
+class InMemoryCircuitBreaker:
+    """Thread-safe in-memory circuit breaker for local mode."""
+    
+    def __init__(self, threshold: int = 5, reset_timeout: int = 60):
+        self._failures: dict[str, tuple[int, float]] = {}
+        self._lock = threading.Lock()
+        self._threshold = threshold
+        self._reset_timeout = reset_timeout
+    
+    def is_open(self, key: str) -> bool:
+        with self._lock:
+            if key not in self._failures:
+                return False
+            count, timestamp = self._failures[key]
+            # Check if reset timeout has passed
+            if time.time() - timestamp > self._reset_timeout:
+                del self._failures[key]
+                return False
+            return count >= self._threshold
+    
+    def record_failure(self, key: str) -> None:
+        with self._lock:
+            if key in self._failures:
+                count, _ = self._failures[key]
+                self._failures[key] = (count + 1, time.time())
+            else:
+                self._failures[key] = (1, time.time())
+    
+    def reset(self, key: str) -> None:
+        with self._lock:
+            self._failures.pop(key, None)
+    
+    def get_failure_count(self, key: str) -> int:
+        with self._lock:
+            if key not in self._failures:
+                return 0
+            count, timestamp = self._failures[key]
+            # Check if reset timeout has passed
+            if time.time() - timestamp > self._reset_timeout:
+                del self._failures[key]
+                return 0
+            return count
+
+
+# Global circuit breaker instance
+_circuit_breaker = InMemoryCircuitBreaker(
+    threshold=settings.CIRCUIT_BREAKER_THRESHOLD,
+    reset_timeout=settings.CIRCUIT_BREAKER_RESET_TIMEOUT
+)
+
+
 class YahooProvider(BaseProvider):
     name = "yahoo"
     supported_timeframes = list(_TIMEFRAME_MAP.keys())
 
     def __init__(self) -> None:
-        self._redis: aioredis.Redis | None = None
         # Initialize a persistent requests session with proper browser headers
         self._session = requests.Session()
         self._session.headers.update({
@@ -77,29 +128,19 @@ class YahooProvider(BaseProvider):
 
     # ── Circuit breaker ────────────────────────────────────────────────────
 
-    async def _redis_client(self) -> aioredis.Redis:
-        if self._redis is None:
-            self._redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        return self._redis
-
     async def _check_circuit(self, key: str) -> None:
-        client = await self._redis_client()
-        raw = await client.get(key)
-        count = int(raw) if raw else 0
-        if count >= settings.CIRCUIT_BREAKER_THRESHOLD:
+        if _circuit_breaker.is_open(key):
+            count = _circuit_breaker.get_failure_count(key)
             raise ProviderUnavailableError(
                 f"Yahoo Finance circuit breaker open for key={key}. "
                 f"Failures={count} >= threshold={settings.CIRCUIT_BREAKER_THRESHOLD}"
             )
 
     async def _record_failure(self, key: str) -> None:
-        client = await self._redis_client()
-        await client.incr(key)
-        await client.expire(key, settings.CIRCUIT_BREAKER_RESET_TIMEOUT)
+        _circuit_breaker.record_failure(key)
 
     async def _reset_circuit(self, key: str) -> None:
-        client = await self._redis_client()
-        await client.delete(key)
+        _circuit_breaker.reset(key)
 
     # ── OHLCV ─────────────────────────────────────────────────────────────
 

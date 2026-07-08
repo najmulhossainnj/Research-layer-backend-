@@ -1,7 +1,7 @@
 """
 Cache management endpoints.
 
-GET  /api/v1/cache/stats              — cache key counts, memory usage
+GET  /api/v1/cache/stats              — cache key counts, size usage
 POST /api/v1/cache/refresh            — force re-ingestion by invalidating a hash
 DELETE /api/v1/cache/invalidate       — remove a specific hash from cache
 DELETE /api/v1/cache/flush/{pattern}  — flush all keys matching a pattern
@@ -13,10 +13,11 @@ require the same API key as the data endpoints.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import Any
 
-import redis.asyncio as aioredis
+import diskcache
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from delivery.cache.redis_cache import dataset_cache
@@ -29,9 +30,28 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/cache", dependencies=[Depends(verify_api_key)])
 
+_cache = diskcache.Cache(settings.CACHE_DIR, tag_index=True)
 
-async def _raw_client() -> aioredis.Redis:
-    return aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+
+def _get_cache_size() -> int:
+    """Get total size of cache directory in bytes."""
+    total = 0
+    cache_dir = settings.CACHE_DIR
+    if os.path.exists(cache_dir):
+        for dirpath, dirnames, filenames in os.walk(cache_dir):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total += os.path.getsize(fp)
+    return total
+
+
+def _format_size(size_bytes: int) -> str:
+    """Format bytes to human readable string."""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.2f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.2f} TB"
 
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
@@ -40,22 +60,25 @@ async def _raw_client() -> aioredis.Redis:
 @router.get("/stats", response_model=APIResponse, summary="Cache statistics")
 async def cache_stats() -> APIResponse:
     """
-    Returns the number of cached dataset keys and Redis memory usage.
+    Returns the number of cached dataset keys and DiskCache size.
     """
     t = time.perf_counter()
     try:
-        client = await _raw_client()
-        keys = await client.keys("ds:*")
-        info = await client.info("memory")
-        await client.aclose()
+        # Count keys with ds: prefix
+        cached_datasets = sum(1 for key in _cache.iterkeys() if str(key).startswith("ds:"))
+        
+        # Get cache size
+        size_bytes = _get_cache_size()
+        size_human = _format_size(size_bytes)
 
         return APIResponse(
             status="success",
             message="Cache statistics retrieved.",
             data={
-                "cached_datasets": len(keys),
-                "used_memory_human": info.get("used_memory_human"),
-                "used_memory_bytes": info.get("used_memory"),
+                "cached_datasets": cached_datasets,
+                "cache_size_human": size_human,
+                "cache_size_bytes": size_bytes,
+                "backend": "diskcache",
             },
             execution_time=round(time.perf_counter() - t, 4),
         )
@@ -63,7 +86,7 @@ async def cache_stats() -> APIResponse:
         logger.error("cache_stats failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Redis unavailable: {exc}",
+            detail=f"Cache unavailable: {exc}",
         )
 
 
@@ -149,38 +172,25 @@ async def cache_flush_symbol(
     Flushes ALL cached datasets for a given symbol (ohlcv, news, fundamentals).
 
     Useful after a ticker rename, merger, or data correction.
-    This is a scan-then-delete operation — avoid on very large caches.
     """
     t = time.perf_counter()
     symbol = symbol.upper()
+    deleted = 0
 
     try:
-        client = await _raw_client()
+        # Iterate and delete keys containing the symbol
+        keys_to_delete = []
+        for key in _cache.iterkeys():
+            key_str = str(key)
+            if key_str.startswith("ds:"):
+                val = _cache.get(key)
+                if val and f"/{symbol}/" in str(val):
+                    keys_to_delete.append(key)
+        
+        for key in keys_to_delete:
+            del _cache[key]
+            deleted += 1
 
-        # Scan all ds: keys and delete those whose stored value contains the symbol path
-        all_keys = await client.keys("ds:*")
-        deleted = 0
-
-        # We can't know which hashes belong to a symbol without decoding the URI,
-        # so we store a secondary index: sym:{symbol} -> set of hashes
-        # For now, invalidate via the secondary index if it exists, otherwise scan values.
-        sym_index_key = f"sym:{symbol}"
-        hashes = await client.smembers(sym_index_key)
-
-        if hashes:
-            for h in hashes:
-                await client.delete(f"ds:{h}")
-                deleted += 1
-            await client.delete(sym_index_key)
-        else:
-            # Fallback: linear scan (acceptable for maintenance ops)
-            for key in all_keys:
-                val = await client.get(key)
-                if val and f"/{symbol}/" in val:
-                    await client.delete(key)
-                    deleted += 1
-
-        await client.aclose()
         logger.info("Cache flush: symbol=%s deleted=%d", symbol, deleted)
 
         return APIResponse(
@@ -192,5 +202,5 @@ async def cache_flush_symbol(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Redis unavailable: {exc}",
+            detail=f"Cache error: {exc}",
         )

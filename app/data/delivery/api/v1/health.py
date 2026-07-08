@@ -1,10 +1,10 @@
 """
 GET /api/v1/health  — liveness and readiness probe.
 
-Checks connectivity to all three infrastructure dependencies:
-  postgres  — SQLAlchemy async ping
-  redis     — PING command
-  minio     — HeadBucket request
+Checks connectivity to infrastructure dependencies:
+  database  — SQLAlchemy async ping (SQLite)
+  cache     — DiskCache health check
+  storage   — MinIO/S3 (optional)
 """
 
 from __future__ import annotations
@@ -15,44 +15,56 @@ from fastapi import APIRouter
 from sqlalchemy import text
 
 from delivery.cache.redis_cache import dataset_cache
-from ingestion.storage.parquet_store import ParquetStore, _s3_client
 from shared.db.session import AsyncSessionLocal
 from shared.models.responses import HealthResponse
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-_parquet = ParquetStore()
 
 
-async def _check_postgres() -> str:
+async def _check_database() -> str:
+    """Check SQLite database connectivity."""
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
         return "ok"
     except Exception as exc:
-        logger.warning("Health: postgres check failed: %s", exc)
+        logger.warning("Health: database check failed: %s", exc)
         return f"error: {exc}"
 
 
-async def _check_redis() -> str:
-    ok = await dataset_cache.ping()
-    return "ok" if ok else "error: unreachable"
+async def _check_cache() -> str:
+    """Check DiskCache connectivity."""
+    try:
+        ok = await dataset_cache.ping()
+        return "ok" if ok else "error: unreachable"
+    except Exception as exc:
+        return f"error: {exc}"
 
 
-async def _check_minio() -> str:
+async def _check_storage() -> str:
+    """Check MinIO/S3 connectivity (optional)."""
     import asyncio
     from shared.config import settings
 
+    # If MinIO is not configured, return "skipped"
+    if not hasattr(settings, 'MINIO_ENDPOINT') or not settings.MINIO_ENDPOINT:
+        return "skipped"
+
     def _sync() -> str:
         try:
+            from ingestion.storage.parquet_store import _s3_client
             client = _s3_client()
             client.head_bucket(Bucket=settings.MINIO_BUCKET)
             return "ok"
         except Exception as exc:
             return f"error: {exc}"
 
-    return await asyncio.to_thread(_sync)
+    try:
+        return await asyncio.to_thread(_sync)
+    except Exception as exc:
+        return f"error: {exc}"
 
 
 @router.get(
@@ -62,16 +74,21 @@ async def _check_minio() -> str:
     tags=["management"],
 )
 async def health_check() -> HealthResponse:
-    postgres = await _check_postgres()
-    redis = await _check_redis()
-    minio = await _check_minio()
+    database = await _check_database()
+    cache = await _check_cache()
+    storage = await _check_storage()
 
-    all_ok = all(s == "ok" for s in (postgres, redis, minio))
-    degraded = not all_ok and any(s == "ok" for s in (postgres, redis, minio))
+    # Consider "skipped" as "ok" for optional services
+    statuses = [database, cache]
+    if storage != "skipped":
+        statuses.append(storage)
+    
+    all_ok = all(s == "ok" for s in statuses)
+    degraded = not all_ok and any(s == "ok" for s in statuses)
 
     return HealthResponse(
         status="healthy" if all_ok else ("degraded" if degraded else "unhealthy"),
-        postgres=postgres,
-        redis=redis,
-        minio=minio,
+        database=database,
+        cache=cache,
+        storage=storage,
     )

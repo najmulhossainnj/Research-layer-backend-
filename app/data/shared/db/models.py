@@ -1,16 +1,16 @@
 """
 ORM models — metadata only.
 
-Large datasets (OHLCV, news, fundamentals, macro) are NEVER stored in PostgreSQL.
+Large datasets (OHLCV, news, fundamentals, macro) are stored in local files.
 Only the metadata that describes where a dataset lives (storage_uri) is stored here.
+Uses SQLite-compatible types.
 """
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from shared.db.session import Base
@@ -38,7 +38,7 @@ class DatasetRecord(Base):
     storage_uri: Mapped[str] = mapped_column(Text, nullable=False)
     hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     quality_passed: Mapped[bool] = mapped_column(Boolean, default=True)
-    quality_issues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    quality_issues: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, nullable=False
     )
@@ -65,7 +65,7 @@ class IngestionLog(Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)   # "success" | "failed" | "partial"
     rows_fetched: Mapped[int | None] = mapped_column(Integer, nullable=True)
     rows_after_quality: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    issues: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    issues: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     dataset: Mapped["DatasetRecord | None"] = relationship(

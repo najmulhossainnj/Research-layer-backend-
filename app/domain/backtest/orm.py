@@ -8,8 +8,7 @@ referenced via storage_uri rather than inlined.
 import uuid
 from typing import Optional
 
-from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import ForeignKey, JSON, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin
@@ -32,8 +31,9 @@ class BacktestStatus:
 class Backtest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "backtests"
 
-    strategy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("strategies.id"), nullable=False
+    # SQLite-compatible: store UUID as string
+    strategy_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("strategies.id"), nullable=False
     )
 
     engine: Mapped[str] = mapped_column(String(50), default=BacktestEngine.VECTORBT)
@@ -43,8 +43,8 @@ class Backtest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     commission: Mapped[Optional[float]] = mapped_column(Numeric(10, 6), nullable=True)
     slippage: Mapped[Optional[float]] = mapped_column(Numeric(10, 6), nullable=True)
 
-    config: Mapped[dict] = mapped_column(JSONB, default=dict)  # spread, market impact, etc.
-    metrics: Mapped[dict] = mapped_column(JSONB, default=dict)  # Sharpe, CAGR, drawdown...
+    config: Mapped[dict] = mapped_column(JSON, default=dict)  # spread, market impact, etc.
+    metrics: Mapped[dict] = mapped_column(JSON, default=dict)  # Sharpe, CAGR, drawdown...
 
     # Pointers rather than inline blobs
     trades_uri: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

@@ -9,15 +9,15 @@ Called by:
 
 Step sequence (from spec):
   1.  Compute SHA-256 hash
-  2.  Check Redis cache → if hit, return URI
+  2.  Check DiskCache → if hit, return URI
   3.  Select provider from registry
   4.  provider.download_*() → raw Pandas DataFrame / dict
   5.  normalizer.normalize() → Polars DataFrame
-  6.  validators.run_all_*() → log issues to PostgreSQL
-  7.  Write Parquet to MinIO
-  8.  Write DatasetRecord to PostgreSQL
-  9.  Set Redis cache hash → URI with TTL
-  10. Publish DatasetIngested to Redis Stream
+  6.  validators.run_all_*() → log issues to SQLite
+  7.  Write Parquet to local storage
+  8.  Write DatasetRecord to SQLite
+  9.  Set DiskCache hash → URI with TTL
+  10. Publish event to local event log
   11. Return storage_uri
 """
 
@@ -28,6 +28,8 @@ import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional
+
+import diskcache
 
 import polars as pl
 
@@ -81,6 +83,12 @@ def _cache_ttl(data_type: str, timeframe: Optional[str] = None) -> int:
     return settings.CACHE_TTL_OHLCV_DAILY
 
 
+# ── Cache (DiskCache) ────────────────────────────────────────────────────────
+
+
+_cache = diskcache.Cache(settings.CACHE_DIR, tag_index=True)
+
+
 # ── Pipeline ──────────────────────────────────────────────────────────────────
 
 
@@ -93,23 +101,15 @@ class IngestionPipeline:
         self._fund_norm = FundamentalsNormalizer()
         self._macro_norm = MacroNormalizer()
 
-    # ── Cache helpers (direct Redis; no full DatasetCache import to avoid cycle) ─
+    # ── Cache helpers (DiskCache) ─
 
     async def _cache_get(self, hash_val: str) -> Optional[str]:
-        import redis.asyncio as aioredis
-        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        try:
-            return await client.get(f"ds:{hash_val}")
-        finally:
-            await client.aclose()
+        """Get cached URI from DiskCache."""
+        return _cache.get(f"ds:{hash_val}")
 
     async def _cache_set(self, hash_val: str, uri: str, ttl: int) -> None:
-        import redis.asyncio as aioredis
-        client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        try:
-            await client.setex(f"ds:{hash_val}", ttl, uri)
-        finally:
-            await client.aclose()
+        """Set cached URI in DiskCache with TTL."""
+        _cache.set(f"ds:{hash_val}", uri, expire=ttl)
 
     # ── OHLCV ─────────────────────────────────────────────────────────────
 

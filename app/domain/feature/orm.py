@@ -6,8 +6,7 @@ automated/tsfresh, or alternative-data) managed by the Feature Store.
 """
 from typing import Optional
 
-from sqlalchemy import String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin, VersionMixin
@@ -29,10 +28,10 @@ class Feature(Base, UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    parameters: Mapped[dict] = mapped_column(JSONB, default=dict)
+    parameters: Mapped[dict] = mapped_column(JSON, default=dict)
 
     # Plugin identifier resolved through the feature plugin registry
     plugin_key: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    # Pointer to where generated feature data lives in the feature store (S3/MinIO key prefix)
+    # Pointer to where generated feature data lives in the feature store (local key prefix)
     storage_uri: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

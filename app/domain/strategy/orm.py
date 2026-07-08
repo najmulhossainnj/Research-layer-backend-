@@ -9,7 +9,7 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import ARRAY, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import JSON, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.mixins import TimestampMixin, UUIDPrimaryKeyMixin, VersionMixin
@@ -44,7 +44,7 @@ class Strategy(Base, UUIDPrimaryKeyMixin, TimestampMixin, VersionMixin):
     )
 
     status: Mapped[str] = mapped_column(String(20), default=StrategyStatus.DRAFT)
-    pipeline_config: Mapped[dict] = mapped_column(JSONB, default=dict)
+    pipeline_config: Mapped[dict] = mapped_column(JSON, default=dict)
 
     model: Mapped[Optional["MLModel"]] = relationship(back_populates="strategies")
     experiments: Mapped[list["Experiment"]] = relationship(back_populates="strategy")
