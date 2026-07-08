@@ -5,7 +5,6 @@ Mirrors / extends an MLflow run with research-platform-specific lineage:
 dataset version, feature version, model version, and the strategy it
 belongs to. Enables side-by-side comparison in the Experiment Tracker UI.
 """
-import uuid
 from typing import Optional
 
 from sqlalchemy import ForeignKey, String
@@ -19,8 +18,8 @@ from app.db.session import Base
 class Experiment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "experiments"
 
-    strategy_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("strategies.id"), nullable=False
+    strategy_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("strategies.id"), nullable=False
     )
 
     dataset_version: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
