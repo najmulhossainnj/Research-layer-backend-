@@ -79,12 +79,30 @@ async def run_research(payload: ResearchRequest, db: AsyncSession = Depends(get_
 
 # ── SSE streaming research run ────────────────────────────────────────────
 
-@router.post("/research/stream")
-async def stream_research(payload: ResearchRequest, db: AsyncSession = Depends(get_db)):
+@router.get("/research/stream")
+async def stream_research_get(
+    query: str,
+    symbols: Optional[str] = None,
+    timeframe: str = "1d",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    strategy_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db)
+):
     """
-    Stream per-agent progress as Server-Sent Events.
+    Stream per-agent progress as Server-Sent Events via GET (for EventSource).
     Each event is a JSON object: {event, role, summary, details, …}.
     """
+    from datetime import datetime as dt
+    
+    payload = ResearchRequest(
+        query=query,
+        symbols=symbols.split(",") if symbols else [],
+        timeframe=timeframe,
+        start_date=dt.fromisoformat(start_date) if start_date else None,
+        end_date=dt.fromisoformat(end_date) if end_date else None,
+        strategy_id=strategy_id
+    )
     ctx = _build_context(payload)
 
     async def _sse_generator() -> AsyncGenerator[str, None]:
