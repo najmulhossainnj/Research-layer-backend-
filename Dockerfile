@@ -1,5 +1,5 @@
 # Unified Quant Research Platform - Dockerfile
-# Local Backend: SQLite + DiskCache (no PostgreSQL, Redis, or Celery)
+# Local Backend: SQLite + DiskCache (all local, no external services)
 
 FROM python:3.12-slim
 

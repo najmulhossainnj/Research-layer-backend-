@@ -9,7 +9,7 @@ GET /api/v1/backtests/{id}.
 import asyncio
 import uuid
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -20,7 +20,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="backtests.execute")
+@task_app.task(name="backtests.execute")
 def execute_backtest_task(backtest_id: str):
     async def _inner():
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

@@ -8,7 +8,7 @@ import asyncio
 import uuid
 from datetime import datetime
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -19,7 +19,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="validation.walk_forward")
+@task_app.task(name="validation.walk_forward")
 def walk_forward_task(payload: dict):
     async def _inner():
         from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -80,7 +80,7 @@ def walk_forward_task(payload: dict):
     return _run_async(_inner())
 
 
-@celery_app.task(name="validation.cpcv")
+@task_app.task(name="validation.cpcv")
 def cpcv_task(payload: dict):
     """Async CPCV validation."""
     async def _inner():

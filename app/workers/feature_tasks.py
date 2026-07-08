@@ -7,7 +7,7 @@ or expensive tsfresh/FinBERT runs should not block the API thread.
 import asyncio
 import uuid
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -18,7 +18,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="features.generate")
+@task_app.task(name="features.generate")
 def generate_feature_task(
     feature_id: str,
     symbol: str,

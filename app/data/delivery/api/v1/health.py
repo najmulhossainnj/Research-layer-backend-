@@ -14,7 +14,7 @@ import logging
 from fastapi import APIRouter
 from sqlalchemy import text
 
-from delivery.cache.redis_cache import dataset_cache
+from delivery.cache.disk_cache import dataset_cache
 from shared.db.session import AsyncSessionLocal
 from shared.models.responses import HealthResponse
 

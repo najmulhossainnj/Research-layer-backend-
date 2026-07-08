@@ -16,7 +16,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from delivery.cache.redis_cache import dataset_cache
+from delivery.cache.disk_cache import dataset_cache
 from delivery.query.duckdb_reader import duckdb_reader
 from ingestion.pipeline import IngestionPipeline, compute_hash
 from shared.auth.dependencies import verify_api_key

@@ -367,13 +367,13 @@ docker-compose exec app alembic upgrade head
 
 ```bash
 # Feature generation worker
-# Background tasks run in-process - no celery worker needed -l info -Q feature_queue -n feature_worker
+# NOT NEEDED FOR LOCAL BACKEND
 
 # Model training worker
-# Background tasks run in-process - no celery worker needed -l info -Q training_queue -n training_worker
+# NOT NEEDED FOR LOCAL BACKEND
 
 # Backtest worker
-# Background tasks run in-process - no celery worker needed -l info -Q backtest_queue -n backtest_worker
+# NOT NEEDED FOR LOCAL BACKEND
 ```
 
 ### Task Endpoints
@@ -446,11 +446,11 @@ alembic history
 
 ```bash
 # Test LOCAL (SQLite + DiskCache + APScheduler) connection
-redis-cli ping
+redis-cli ping  # NOT NEEDED FOR LOCAL BACKEND
 # Should return: PONG
 
 # Check LOCAL (SQLite + DiskCache + APScheduler)
-celery -A app.workers.celery_app inspect active
+# Celery commands - NOT NEEDED FOR LOCAL BACKEND
 ```
 
 ### MinIO/S3 Issues

@@ -7,7 +7,7 @@ long date ranges that would otherwise block the API thread.
 import asyncio
 import uuid
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -18,7 +18,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="signals.generate")
+@task_app.task(name="signals.generate")
 def generate_signals_task(
     model_id: str,
     feature_ids: list[str],

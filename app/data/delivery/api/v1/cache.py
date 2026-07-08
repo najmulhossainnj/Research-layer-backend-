@@ -20,7 +20,7 @@ from typing import Any
 import diskcache
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from delivery.cache.redis_cache import dataset_cache
+from delivery.cache.disk_cache import dataset_cache
 from ingestion.pipeline import compute_hash
 from shared.auth.dependencies import verify_api_key
 from shared.config import settings

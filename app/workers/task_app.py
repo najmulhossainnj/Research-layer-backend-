@@ -178,7 +178,7 @@ def local_task(func: Optional[Callable] = None, *, bind: bool = False, name: Opt
 
 
 # Create the local task_app
-class LocalCeleryApp:
+class LocalTaskApp:
     """
     A task queue app interface for local execution.
     
@@ -210,7 +210,7 @@ class LocalCeleryApp:
 
 
 # Create the app instance
-task_app = LocalCeleryApp("research_layer")
+task_app = LocalTaskApp("research_layer")
 
 
 # For backward compatibility with task queue patterns

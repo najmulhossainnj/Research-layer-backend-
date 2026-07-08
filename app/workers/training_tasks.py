@@ -7,7 +7,7 @@ datasets, dev mode) or dispatch here for background execution.
 import asyncio
 import uuid
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -19,7 +19,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="training.train_model")
+@task_app.task(name="training.train_model")
 def train_model_task(
     model_id: str,
     feature_ids: list[str],
@@ -89,7 +89,7 @@ def train_model_task(
     return _run_async(_inner())
 
 
-@celery_app.task(name="training.tune_model")
+@task_app.task(name="training.tune_model")
 def tune_model_task(
     plugin_key: str,
     feature_ids: list[str],

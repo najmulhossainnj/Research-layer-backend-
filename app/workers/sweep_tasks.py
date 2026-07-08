@@ -10,7 +10,7 @@ only the fields inside `config` vary.
 import asyncio
 import uuid
 
-from app.workers.task_app import task_app as celery_app
+from app.workers.task_app import task_app
 
 
 def _run_async(coro):
@@ -21,7 +21,7 @@ def _run_async(coro):
         loop.close()
 
 
-@celery_app.task(name="backtests.sweep")
+@task_app.task(name="backtests.sweep")
 def parameter_sweep_task(
     strategy_id: str,
     engine: str,

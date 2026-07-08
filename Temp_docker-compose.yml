@@ -9,7 +9,7 @@
 # - MLflow: Experiment tracking
 # - Unified API: Single container with Research + Data layers
 #
-# Local backend means no external services required (PostgreSQL, Redis, etc.)
+# Local backend means no external services required (all local)
 # Everything runs in-process with local disk storage.
 #
 # Usage:
