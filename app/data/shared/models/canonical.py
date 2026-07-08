@@ -90,7 +90,7 @@ class MacroPoint(BaseModel):
     provider: str
 
 
-# ── Dataset metadata (stored in PostgreSQL, not Parquet) ─────────────────────
+# ── Dataset metadata (stored in SQLite, not Parquet) ─────────────────────
 
 
 class DatasetMeta(BaseModel):

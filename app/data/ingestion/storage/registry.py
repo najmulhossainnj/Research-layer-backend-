@@ -1,8 +1,8 @@
 """
-DatasetRegistry — reads and writes dataset metadata in PostgreSQL.
+DatasetRegistry — reads and writes dataset metadata in SQLite.
 
 Only metadata is stored here (storage_uri, hash, row counts, quality flags).
-The actual data lives in Parquet files on MinIO.
+The actual data lives in Parquet files on local storage or MinIO.
 """
 
 from __future__ import annotations

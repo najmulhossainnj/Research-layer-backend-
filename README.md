@@ -35,7 +35,7 @@ A production-grade backend for quantitative research combining the **Research La
          ┌────────────────────┼────────────────────┐
          ▼                    ▼                    ▼
    ┌──────────┐         ┌──────────┐         ┌──────────┐
-   │PostgreSQL│         │  Redis   │         │  MinIO   │
+   │LOCAL (SQLite + DiskCache + APScheduler)│         │  LOCAL (SQLite + DiskCache + APScheduler)   │         │  MinIO   │
    │ (Meta)   │         │ (Cache)  │         │ (S3)     │
    └──────────┘         └──────────┘         └──────────┘
 ```
@@ -49,7 +49,7 @@ A production-grade backend for quantitative research combining the **Research La
 git clone https://github.com/najmulhossainnj/Hedge-fund-backend.git
 cd Hedge-fund-backend
 
-# Start all services (API + Celery worker + PostgreSQL + Redis + MinIO + MLflow)
+# Start all services (API + LOCAL (SQLite + DiskCache + APScheduler) worker + LOCAL (SQLite + DiskCache + APScheduler) + LOCAL (SQLite + DiskCache + APScheduler) + MinIO + MLflow)
 docker-compose up -d
 
 # Check API health
@@ -73,7 +73,7 @@ print('Buckets ready')
 # Watch API logs
 docker-compose logs -f api
 
-# Watch Celery worker logs
+# Watch LOCAL (SQLite + DiskCache + APScheduler) worker logs
 docker-compose logs -f celery_worker
 ```
 
@@ -101,7 +101,7 @@ alembic upgrade head
 # Start the server
 uvicorn app.main:app --reload
 
-# In a separate terminal, start Celery worker
+# In a separate terminal, start LOCAL (SQLite + DiskCache + APScheduler) worker
 celery -A app.workers.celery_app worker --loglevel=info
 ```
 
@@ -128,7 +128,7 @@ Hedge-fund-backend/
 │   ├── domain/                # ORM models + Pydantic schemas
 │   ├── engines/               # Feature/Signal/Backtest engines
 │   ├── plugins/               # Plugin system (Base classes + examples)
-│   ├── workers/               # Celery task definitions
+│   ├── workers/               # LOCAL (SQLite + DiskCache + APScheduler) task definitions
 │   └── data/                  # Merged Data Layer
 │       ├── delivery/          # FastAPI endpoints
 │       ├── ingestion/         # Provider implementations
@@ -173,7 +173,7 @@ Hedge-fund-backend/
   new version, without overwriting history.
 - **Feature Store** (`app/engines/feature_engine/store.py`): durable
   storage on S3/MinIO (parquet), metadata/lineage in Postgres, fronted by
-  a Redis cache (`app/core/cache.py`) for repeated reads within a session.
+  a LOCAL (SQLite + DiskCache + APScheduler) cache (`app/core/cache.py`) for repeated reads within a session.
   Supports `list_versions()` for historical regeneration/audit.
 - **Object storage client** (`app/core/storage.py`): boto3/MinIO wrapper
   shared by the Feature Store and, later, model/backtest artifact storage.
@@ -217,16 +217,16 @@ Hedge-fund-backend/
   added alongside the existing XGBoost plugin.
 - **API endpoints** (`training_router.py`):
   - `POST /models/{id}/train` — synchronous train + CV report
-  - `POST /models/{id}/train/async` — dispatch to Celery worker
+  - `POST /models/{id}/train/async` — dispatch to LOCAL (SQLite + DiskCache + APScheduler) worker
   - `POST /models/tune` — synchronous Optuna study
-  - `POST /models/tune/async` — dispatch to Celery worker
+  - `POST /models/tune/async` — dispatch to LOCAL (SQLite + DiskCache + APScheduler) worker
   - `POST /models/automl` — leaderboard across candidate plugins
   - `GET  /models/plugins/available` — registered plugin keys
   - `GET  /models/plugins/search-spaces` — default param spaces
 - **Experiments CRUD** (`api/experiments/router.py`): create/read/list/
   update/delete experiments, plus `POST /experiments/compare` which diffs
   metrics across up to 10 runs and highlights the best per metric.
-- **Celery workers** (`workers/`): `training_tasks.py` (train + tune),
+- **LOCAL (SQLite + DiskCache + APScheduler) workers** (`workers/`): `training_tasks.py` (train + tune),
   `feature_tasks.py` (generate), shared `celery_app.py` instance.
 - **`GET /api/v1/tasks/{task_id}`** — generic task-status polling endpoint.
 
@@ -274,8 +274,8 @@ Hedge-fund-backend/
 - **Parameter sweep** (`api/backtests/sweep_router.py` +
   `workers/sweep_tasks.py`): `POST /backtests/sweep` accepts a
   `base_config` + `param_grid` list, creates and executes N backtest
-  rows in the Celery worker pool, returns a ranked leaderboard.
-- **Celery task** (`workers/backtest_tasks.py`): `backtests.execute`
+  rows in the LOCAL (SQLite + DiskCache + APScheduler) worker pool, returns a ranked leaderboard.
+- **LOCAL (SQLite + DiskCache + APScheduler) task** (`workers/backtest_tasks.py`): `backtests.execute`
   wraps the full pipeline for async dispatch.
 
 ## Not yet implemented (later phases)
@@ -297,10 +297,10 @@ On Railway, deploy **two separate services** that share environment variables:
 3. Use the `Dockerfile.unified`
 4. Set environment variables:
    ```
-   DATABASE_URL=<Railway PostgreSQL connection string>
-   REDIS_URL=<Upstash Redis URL>
-   CELERY_BROKER_URL=<Upstash Redis URL>
-   CELERY_RESULT_BACKEND=<Upstash Redis URL>
+   DATABASE_URL=<Railway LOCAL (SQLite + DiskCache + APScheduler) connection string>
+   REDIS_URL=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
+   CELERY_BROKER_URL=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
+   CELERY_RESULT_BACKEND=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
    S3_ENDPOINT_URL=<Cloudflare R2 endpoint>
    S3_ACCESS_KEY=<R2 access key>
    S3_SECRET_KEY=<R2 secret key>
@@ -313,7 +313,7 @@ On Railway, deploy **two separate services** that share environment variables:
    ```
 5. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port 8000`
 
-#### Service 2: Celery Worker (using Dockerfile.worker)
+#### Service 2: LOCAL (SQLite + DiskCache + APScheduler) Worker (using Dockerfile.worker)
 1. Add another **Nix** service to the same Railway project
 2. Use the `Dockerfile.worker`
 3. **Same environment variables** as API (Railway auto-shares them)
@@ -322,8 +322,8 @@ On Railway, deploy **two separate services** that share environment variables:
 #### Key: How services communicate
 | Service | Reaches |
 |---------|---------|
-| API | PostgreSQL, Redis via Railway private networking |
-| Celery Worker | Same PostgreSQL, Redis via Railway private networking |
+| API | LOCAL (SQLite + DiskCache + APScheduler), LOCAL (SQLite + DiskCache + APScheduler) via Railway private networking |
+| LOCAL (SQLite + DiskCache + APScheduler) Worker | Same LOCAL (SQLite + DiskCache + APScheduler), LOCAL (SQLite + DiskCache + APScheduler) via Railway private networking |
 | API → Data Layer | `DATA_SERVICE_URL` external URL |
 
 ### Docker Compose (Local Development)
@@ -335,10 +335,10 @@ See Docker Compose section above for full local stack.
 See `.env.example` for all configurable options.
 
 **Required for async backtest execution:**
-- `CELERY_BROKER_URL` - Redis URL (broker)
-- `CELERY_RESULT_BACKEND` - Redis URL (results)
+- `CELERY_BROKER_URL` - LOCAL (SQLite + DiskCache + APScheduler) URL (broker)
+- `CELERY_RESULT_BACKEND` - LOCAL (SQLite + DiskCache + APScheduler) URL (results)
 
-When these are configured, async execution works automatically. The backend gracefully falls back to sync execution if Redis is unavailable.
+When these are configured, async execution works automatically. The backend gracefully falls back to sync execution if LOCAL (SQLite + DiskCache + APScheduler) is unavailable.
 
 Visit `http://localhost:8000/docs` for interactive API docs.
 
@@ -353,6 +353,6 @@ backend/app/
   engines/        feature/signal/backtest/validation engine implementations
   plugins/        BaseFeature/BaseModel/BaseSignalGenerator/BaseBacktestEngine
                   + registries + example plugins
-  workers/        Celery/RQ task definitions (Phase 3+)
+  workers/        LOCAL (SQLite + DiskCache + APScheduler)/RQ task definitions (Phase 3+)
   events/         event publishing/consuming (Phase 9+)
 ```

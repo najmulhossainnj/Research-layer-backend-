@@ -17,7 +17,7 @@ The **Hedge Fund Backend** is a FastAPI-based backend service for the BLACKWOOD 
 ├─────────────────────────────────────────────────────────────────┤
 │                     SQLAlchemy Async ORM                         │
 ├───────────────┬───────────────┬───────────────┬─────────────────┤
-│   PostgreSQL  │     Redis     │   MinIO/S3    │    Celery       │
+│   LOCAL (SQLite + DiskCache + APScheduler)  │     LOCAL (SQLite + DiskCache + APScheduler)     │   MinIO/S3    │    LOCAL (SQLite + DiskCache + APScheduler)       │
 │  (Metadata)   │   (Cache)     │  (Artifacts)  │   (Workers)     │
 └───────────────┴───────────────┴───────────────┴─────────────────┘
 ```
@@ -53,7 +53,7 @@ app/
 │   ├── base_model.py
 │   ├── base_signal.py
 │   └── base_backtest.py
-└── workers/               # Celery task definitions
+└── workers/               # LOCAL (SQLite + DiskCache + APScheduler) task definitions
     ├── feature_tasks.py
     ├── training_tasks.py
     └── backtest_tasks.py
@@ -255,8 +255,8 @@ class CustomEngine(BaseBacktestEngine):
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 15+
-- Redis 7+
+- LOCAL (SQLite + DiskCache + APScheduler) 15+
+- LOCAL (SQLite + DiskCache + APScheduler) 7+
 - MinIO (or AWS S3)
 - Docker & Docker Compose (optional)
 
@@ -302,14 +302,14 @@ docker-compose exec app alembic upgrade head
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_URL` | postgresql+asyncpg://user:pass@localhost/db | PostgreSQL connection |
-| `REDIS_URL` | redis://localhost:6379/0 | Redis connection |
+| `DATABASE_URL` | sqlite+aiosqlite://user:pass@localhost/db | LOCAL (SQLite + DiskCache + APScheduler) connection |
+| `REDIS_URL` | redis://localhost:6379/0 | LOCAL (SQLite + DiskCache + APScheduler) connection |
 | `MINIO_ENDPOINT` | localhost:9000 | MinIO/S3 endpoint |
 | `MINIO_ACCESS_KEY` | minioadmin | MinIO access key |
 | `MINIO_SECRET_KEY` | minioadmin | MinIO secret key |
 | `MINIO_BUCKET` | hedge-fund-artifacts | S3 bucket name |
 | `DATA_SERVICE_URL` | http://localhost:8001 | Data layer URL |
-| `CELERY_BROKER_URL` | redis://localhost:6379/1 | Celery broker |
+| `CELERY_BROKER_URL` | redis://localhost:6379/1 | LOCAL (SQLite + DiskCache + APScheduler) broker |
 | `GEMINI_API_KEY` | - | Gemini API key for AI agents |
 
 ---
@@ -361,7 +361,7 @@ docker-compose exec app alembic upgrade head
 
 ---
 
-## Celery Workers
+## LOCAL (SQLite + DiskCache + APScheduler) Workers
 
 ### Start Workers
 
@@ -422,9 +422,9 @@ pytest -m integration -v
 ## Performance Tips
 
 1. **Use async endpoints** - All database operations use async SQLAlchemy
-2. **Enable caching** - Redis caching for repeated queries
-3. **Use Celery** - Long-running tasks (training, backtests) should be async
-4. **Connection pooling** - PostgreSQL and Redis use connection pools
+2. **Enable caching** - LOCAL (SQLite + DiskCache + APScheduler) caching for repeated queries
+3. **Use LOCAL (SQLite + DiskCache + APScheduler)** - Long-running tasks (training, backtests) should be async
+4. **Connection pooling** - LOCAL (SQLite + DiskCache + APScheduler) and LOCAL (SQLite + DiskCache + APScheduler) use connection pools
 5. **S3 artifacts** - Large files (models, backtest results) stored in MinIO/S3
 
 ---
@@ -442,14 +442,14 @@ alembic current
 alembic history
 ```
 
-### Redis Connection Issues
+### LOCAL (SQLite + DiskCache + APScheduler) Connection Issues
 
 ```bash
-# Test Redis connection
+# Test LOCAL (SQLite + DiskCache + APScheduler) connection
 redis-cli ping
 # Should return: PONG
 
-# Check Celery
+# Check LOCAL (SQLite + DiskCache + APScheduler)
 celery -A app.workers.celery_app inspect active
 ```
 

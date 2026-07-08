@@ -6,7 +6,7 @@ GET /api/v1/datasets/{hash}        — get metadata for a specific dataset by ha
 GET /api/v1/datasets/symbol/{sym}  — list all datasets for a symbol
 GET /api/v1/datasets/versions      — list all versions of a dataset (by params)
 
-These query the PostgreSQL DatasetRegistry — the metadata layer only.
+These query the SQLite DatasetRegistry — the metadata layer only.
 They never read from MinIO.
 """
 

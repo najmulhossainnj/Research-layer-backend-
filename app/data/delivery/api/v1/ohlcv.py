@@ -45,8 +45,8 @@ async def get_ohlcv(
 
     Flow:
       1. Compute deterministic hash from params
-      2. Check Redis cache for a stored Parquet URI
-      3. If miss, check PostgreSQL registry (survived Redis flush)
+      2. Check DiskCache for a stored Parquet URI
+      3. If miss, check SQLite registry (survived cache flush)
       4. If still miss, trigger ingestion pipeline inline
       5. Query Parquet via DuckDB with predicate pushdown
       6. Return list of {timestamp, open, high, low, close, volume}
