@@ -45,6 +45,13 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan - startup and shutdown events."""
+    # Startup: Initialize database tables
+    try:
+        from app.db.session import init_db
+        await init_db()
+    except Exception as e:
+        print(f"Warning: Database initialization failed: {e}")
+
     # Startup: Initialize data layer providers if available
     try:
         from app.data.ingestion.providers import registry as provider_registry
