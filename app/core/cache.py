@@ -6,7 +6,7 @@ Used by the Feature Engine as a fast, short-TTL cache in front of the
 same (feature, dataset_version) within a research session avoid recompute
 and avoid round-tripping to S3/MinIO.
 
-This replaces the previous Redis-based cache with a local disk-based cache
+Local disk-based cache for dataset artifacts
 using the DiskCache library.
 """
 from functools import lru_cache

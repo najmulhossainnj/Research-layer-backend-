@@ -235,7 +235,7 @@ async def generate_signals(
 async def generate_signals_async(
     payload: SignalGenerateRequest, db: AsyncSession = Depends(get_db)
 ):
-    """Dispatch signal generation as a Celery background task."""
+    """Dispatch signal generation as a background task."""
     from app.workers.signal_tasks import generate_signals_task
 
     task = generate_signals_task.delay(

@@ -2,8 +2,8 @@
 Feature Store.
 
 Persists generated feature datasets to object storage as parquet, tracks
-metadata/lineage in Postgres (`FeatureDataset`), and fronts reads with a
-short-TTL Redis cache. This is the component the spec calls out as needing
+metadata/lineage in SQLite (`FeatureDataset`), and fronts reads with a
+short-TTL local cache. This is the component the spec calls out as needing
 to "generate features / cache features / version features / store
 metadata" with support for "historical regeneration" and "reproducibility".
 """

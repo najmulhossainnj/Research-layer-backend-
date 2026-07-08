@@ -11,7 +11,7 @@ Orchestrates the complete backtest execution chain:
   6. Persist results (equity curve, trades, metrics) via result storage
   7. Update the Backtest row status and return the result
 
-Callers (API handler or Celery task) only interact with this class;
+Callers (API handler or background task) only interact with this class;
 neither knows which engine was used.
 """
 import uuid

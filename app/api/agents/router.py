@@ -24,7 +24,7 @@ from app.db.session import get_db
 
 router = APIRouter(prefix="/agents", tags=["agents"])
 
-# In-process session store (replace with Redis in production)
+# In-process session store (local storage)
 _sessions: dict[str, dict] = {}
 
 

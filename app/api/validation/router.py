@@ -2,7 +2,7 @@
 Validation endpoints.
 
   POST /validation/walk-forward        — sync walk-forward analysis
-  POST /validation/walk-forward/async  — Celery dispatch
+  POST /validation/walk-forward/async  — background task dispatch
   GET  /validation/strategies/{id}     — validation history for a strategy
 """
 import uuid
@@ -146,7 +146,7 @@ async def run_walk_forward(
 
 @router.post("/walk-forward/async")
 async def run_walk_forward_async(payload: WalkForwardRequest):
-    """Dispatch walk-forward validation as a Celery task."""
+    """Dispatch walk-forward validation as a background task."""
     from app.workers.validation_tasks import walk_forward_task
 
     task = walk_forward_task.delay(payload.model_dump(mode="json"))

@@ -4,7 +4,7 @@ Object storage client.
 Thin wrapper around boto3's S3 client pointed at MinIO (or any S3-compatible
 endpoint). Used by the Feature Store for parquet datasets and by other
 layers (model artifacts, backtest trade/equity blobs) for large binary
-payloads that shouldn't live in Postgres rows.
+payloads that shouldn't live in SQLite rows.
 """
 import io
 from functools import lru_cache

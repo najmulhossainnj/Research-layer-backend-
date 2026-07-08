@@ -14,7 +14,7 @@ Full pipeline from raw news → FinBERT scores → Feature Store parquet:
 Article-level score caching
 ---------------------------
 Each article is identified by SHA-256 of its text.  Scores are cached in
-Redis so a daily re-run for a universe of 500 stocks doesn't re-score
+DiskCache so a daily re-run for a universe of 500 stocks doesn't re-score
 articles that appeared the day before.
 """
 from __future__ import annotations
@@ -52,7 +52,7 @@ def _cache_score(text: str, score: SentimentScores) -> None:
 
 
 def score_articles_cached(texts: list[str]) -> list[SentimentScores]:
-    """Score articles, using per-article Redis cache to avoid redundant inference."""
+    """Score articles, using per-article local cache to avoid redundant inference."""
     results: list[Optional[SentimentScores]] = [None] * len(texts)
     uncached_idx: list[int] = []
     uncached_texts: list[str] = []

@@ -19,7 +19,7 @@ from app.workers.task_queue import TaskStatus, get_task_status, submit_task
 
 class LocalTask:
     """
-    A task wrapper that provides a Celery-compatible interface.
+    A task wrapper that provides a task-queue compatible interface.
     
     Usage:
         @local_task(bind=True, name="my_task")
@@ -62,7 +62,7 @@ class LocalTask:
         return task_id
     
     def apply_async(self, args: tuple = (), kwargs: dict = None, **options) -> str:
-        """Celery-compatible apply_async method."""
+        """task-queue compatible apply_async method."""
         return self.delay(*args, **(kwargs or {}))
     
     def AsyncResult(self, task_id: str) -> "LocalAsyncResult":
@@ -76,7 +76,7 @@ class LocalTask:
 
 class LocalAsyncResult:
     """
-    Celery-compatible AsyncResult for local task queue.
+    task-queue compatible AsyncResult for local task queue.
     
     Usage:
         result = MyTask().AsyncResult(task_id)

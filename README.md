@@ -74,7 +74,7 @@ print('Buckets ready')
 docker-compose logs -f api
 
 # Watch LOCAL (SQLite + DiskCache + APScheduler) worker logs
-docker-compose logs -f celery_worker
+# Background tasks run in-process (no separate worker needed)
 ```
 
 ### Local Development
@@ -102,7 +102,7 @@ alembic upgrade head
 uvicorn app.main:app --reload
 
 # In a separate terminal, start LOCAL (SQLite + DiskCache + APScheduler) worker
-celery -A app.workers.celery_app worker --loglevel=info
+# Background tasks run in-process via APScheduler --loglevel=info
 ```
 
 ## 📁 Project Structure
@@ -172,7 +172,7 @@ Hedge-fund-backend/
   reuse. Changed source data (revisions, late-arriving bars) → new hash →
   new version, without overwriting history.
 - **Feature Store** (`app/engines/feature_engine/store.py`): durable
-  storage on S3/MinIO (parquet), metadata/lineage in Postgres, fronted by
+  storage on S3/MinIO (parquet), metadata/lineage in SQLite, fronted by
   a LOCAL (SQLite + DiskCache + APScheduler) cache (`app/core/cache.py`) for repeated reads within a session.
   Supports `list_versions()` for historical regeneration/audit.
 - **Object storage client** (`app/core/storage.py`): boto3/MinIO wrapper
@@ -298,7 +298,7 @@ On Railway, deploy **two separate services** that share environment variables:
 4. Set environment variables:
    ```
    DATABASE_URL=<Railway LOCAL (SQLite + DiskCache + APScheduler) connection string>
-   REDIS_URL=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
+   REDIS_URL=<Not needed LOCAL (SQLite + DiskCache + APScheduler) URL>
    CELERY_BROKER_URL=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
    CELERY_RESULT_BACKEND=<Upstash LOCAL (SQLite + DiskCache + APScheduler) URL>
    S3_ENDPOINT_URL=<Cloudflare R2 endpoint>
@@ -317,7 +317,7 @@ On Railway, deploy **two separate services** that share environment variables:
 1. Add another **Nix** service to the same Railway project
 2. Use the `Dockerfile.worker`
 3. **Same environment variables** as API (Railway auto-shares them)
-4. Set start command: `celery -A app.workers.celery_app worker --loglevel=info --concurrency=2`
+4. Set start command: `# Background tasks run in-process via APScheduler --loglevel=info --concurrency=2`
 
 #### Key: How services communicate
 | Service | Reaches |

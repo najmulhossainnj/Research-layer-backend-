@@ -1,7 +1,7 @@
 """
 Parameter sweep endpoint.
 
-Dispatches a grid of backtest configs to the Celery worker pool and
+Dispatches a grid of backtest configs to the background task pool and
 returns a task_id. Poll GET /api/v1/tasks/{task_id} for the ranked
 leaderboard once all runs complete.
 """
@@ -26,7 +26,7 @@ class SweepRequest(BaseModel):
 
 @router.post("")
 async def run_sweep(payload: SweepRequest):
-    """Kick off a parameter sweep. Returns a Celery task_id to poll."""
+    """Kick off a parameter sweep. Returns a task_id to poll."""
     from app.workers.sweep_tasks import parameter_sweep_task
 
     task = parameter_sweep_task.delay(

@@ -142,7 +142,7 @@ async def automl(payload: AutoMLRequest, db: AsyncSession = Depends(get_db)):
 async def train_model_async(
     model_id: uuid.UUID, payload: TrainRequest, db: AsyncSession = Depends(get_db)
 ):
-    """Dispatch training as a Celery background task.
+    """Dispatch training as a background task.
     Returns immediately with a task_id the client can poll via GET /tasks/{task_id}."""
     from app.workers.training_tasks import train_model_task
 
@@ -166,7 +166,7 @@ async def train_model_async(
 
 @router.post("/tune/async")
 async def tune_model_async(payload: TuneRequest, db: AsyncSession = Depends(get_db)):
-    """Dispatch Optuna tuning as a Celery background task."""
+    """Dispatch Optuna tuning as a background task."""
     from app.workers.training_tasks import tune_model_task
 
     ds = payload.dataset
