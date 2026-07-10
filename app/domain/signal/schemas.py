@@ -2,10 +2,10 @@
 Schemas for SignalLogic CRUD and signal generation.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 # ── Rule tree node schemas (used by the Signal Builder UI) ────────────────
@@ -65,7 +65,13 @@ class SignalLogicRead(BaseModel):
     strategy_id: Optional[uuid.UUID] = None
     version: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @model_validator(mode='after')
+    def set_updated_at_default(self):
+        if self.updated_at is None:
+            self.updated_at = datetime.now(timezone.utc)
+        return self
 
 
 # ── Signal generation request/response ───────────────────────────────────

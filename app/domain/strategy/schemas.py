@@ -2,10 +2,10 @@
 Pydantic schemas for the Strategy resource.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class StrategyBase(BaseModel):
@@ -46,4 +46,10 @@ class StrategyRead(StrategyBase):
     status: str
     version: int
     created_at: datetime
-    updated_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @model_validator(mode='after')
+    def set_updated_at_default(self):
+        if self.updated_at is None:
+            self.updated_at = datetime.now(timezone.utc)
+        return self
